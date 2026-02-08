@@ -1,0 +1,766 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    height: 100%;
+    overflow-x: hidden;
+  }
+  
+  body {
+    @apply text-gray-100 antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    background-color: #0a0a1a;
+    position: relative;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  /* Background cố định - hoạt động tốt trên Safari mobile */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/images/background.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+    z-index: -2;
+    /* Đảm bảo background không bị kéo dài */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+    /* Làm cho background nét hơn */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: auto;
+    /* Tăng độ sắc nét với filter - sharpen effect */
+    filter: contrast(1.15) brightness(1.08) saturate(1.1);
+    -webkit-filter: contrast(1.15) brightness(1.08) saturate(1.1);
+    /* Đảm bảo render sắc nét với hardware acceleration */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    /* Tối ưu hóa rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Overlay tối */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 26, 0.3);
+    z-index: -1;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
+  /* Đảm bảo #root có position relative */
+  #root {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+      transform: translateX(-5px);
+    }
+    20%, 40%, 60%, 80% {
+      transform: translateX(5px);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+
+  .delay-1000 {
+    animation-delay: 1s;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    background-size: 1000px 100%;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px rgba(6, 182, 212, 0.5);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 30px rgba(6, 182, 212, 0.4);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent;
+  }
+  
+  .card {
+    @apply rounded-3xl p-6 sm:p-8;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    /* iOS 26 3D depth shadows */
+    box-shadow: 
+      0 24px 72px -16px rgba(0, 0, 0, 0.5),
+      0 16px 48px -12px rgba(0, 0, 0, 0.4),
+      0 8px 24px -8px rgba(0, 0, 0, 0.3),
+      inset 0 2px 0 0 rgba(255, 255, 255, 0.3),
+      inset -3px -3px 8px 0 rgba(255, 255, 255, 0.15),
+      inset 4px 4px 8px 0 rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
+    transform: perspective(1000px) translateZ(0);
+  }
+  
+  .btn-primary {
+    @apply text-white font-semibold py-3 px-8 rounded-full transition-all duration-300;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+  }
+  
+  .btn-primary:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .btn-secondary {
+    @apply text-white font-semibold py-3 px-8 rounded-full transition-all duration-300;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+  }
+  
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .input-field {
+    @apply w-full rounded-2xl px-5 py-4 text-gray-100 placeholder-gray-400 focus:outline-none transition-all;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+    font-size: 16px; /* Ngăn zoom trên mobile khi font-size < 16px */
+  }
+  
+  /* Đảm bảo tất cả input, textarea, select có font-size >= 16px trên mobile */
+  @media screen and (max-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+  
+  .input-field:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+  }
+  
+  .glass-container {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+  
+  .glass-button {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+  }
+  
+  .glass-button:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .table-row {
+    @apply border-b border-gray-800 hover:bg-gray-900/50 transition-colors;
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 182, 212, 0.5) rgba(17, 24, 39, 0.3);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(17, 24, 39, 0.3);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      to bottom,
+      rgba(6, 182, 212, 0.6),
+      rgba(20, 184, 166, 0.6)
+    );
+    border-radius: 10px;
+    border: 2px solid rgba(17, 24, 39, 0.3);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      to bottom,
+      rgba(6, 182, 212, 0.8),
+      rgba(20, 184, 166, 0.8)
+    );
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(
+      to bottom,
+      rgba(6, 182, 212, 1),
+      rgba(20, 184, 166, 1)
+    );
+  }
+  
+  .hover\:scale-102:hover {
+    transform: scale(1.02);
+  }
+  
+  /* iOS 26 Teardrop/Water Droplet Shape */
+  .teardrop {
+    position: relative;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+  }
+  
+  .teardrop::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50% 50% 50% 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    pointer-events: none;
+    transform: rotate(45deg);
+  }
+  
+  .teardrop::after {
+    content: '';
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    width: 30%;
+    height: 30%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0) 70%
+    );
+    pointer-events: none;
+    transform: rotate(45deg);
+  }
+  
+  /* Alternative teardrop shape - more iOS 26 style */
+  .ios-teardrop {
+    position: relative;
+    overflow: hidden;
+    border-radius: 9999px 9999px 9999px 4px;
+    transform: rotate(-2deg);
+  }
+  
+  .ios-teardrop::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.1) 30%,
+      transparent 70%
+    );
+    animation: shimmer-rotate 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  
+  .ios-teardrop::after {
+    content: '';
+    position: absolute;
+    top: 15%;
+    left: 20%;
+    width: 25%;
+    height: 25%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%
+    );
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  
+  @keyframes shimmer-rotate {
+    0%, 100% {
+      transform: rotate(0deg);
+    }
+    50% {
+      transform: rotate(180deg);
+    }
+  }
+  
+  /* Water droplet button style with iOS 26 3D depth - Enhanced */
+  .water-droplet {
+    position: relative;
+    overflow: hidden;
+    border-radius: 50px 50px 50px 8px;
+    transform: perspective(1800px) rotateX(3deg) translateZ(0);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Enhanced multi-layer shadows for deeper 3D depth - light from top-left */
+    box-shadow: 
+      /* Far shadow - very soft and large for depth */
+      0 48px 144px -20px rgba(0, 0, 0, 0.75),
+      0 40px 120px -18px rgba(0, 0, 0, 0.7),
+      /* Main shadow - soft and large */
+      0 32px 96px -16px rgba(0, 0, 0, 0.65),
+      0 24px 72px -12px rgba(0, 0, 0, 0.6),
+      /* Secondary shadow - medium depth */
+      0 20px 60px -10px rgba(0, 0, 0, 0.55),
+      0 16px 48px -8px rgba(0, 0, 0, 0.5),
+      /* Mid shadow - closer definition */
+      0 12px 36px -6px rgba(0, 0, 0, 0.45),
+      0 8px 24px -4px rgba(0, 0, 0, 0.4),
+      /* Close shadow - sharp definition */
+      0 4px 12px -2px rgba(0, 0, 0, 0.35),
+      /* Top highlight shadow - strong light source simulation */
+      inset 0 3px 0 0 rgba(255, 255, 255, 0.6),
+      inset 0 6px 12px 0 rgba(255, 255, 255, 0.35),
+      inset 0 8px 16px 0 rgba(255, 255, 255, 0.25),
+      /* Top-left specular highlight - enhanced */
+      inset -5px -5px 10px 0 rgba(255, 255, 255, 0.4),
+      inset -8px -8px 16px 0 rgba(255, 255, 255, 0.25),
+      inset -12px -12px 24px 0 rgba(255, 255, 255, 0.15),
+      /* Bottom-right ambient occlusion - deeper */
+      inset 5px 5px 10px 0 rgba(0, 0, 0, 0.3),
+      inset 8px 8px 16px 0 rgba(0, 0, 0, 0.25),
+      inset 12px 12px 24px 0 rgba(0, 0, 0, 0.2),
+      /* Side shadows for depth */
+      -4px 0 12px 0 rgba(0, 0, 0, 0.3),
+      4px 0 12px 0 rgba(0, 0, 0, 0.25),
+      /* Outer glow and border */
+      0 0 0 1px rgba(255, 255, 255, 0.12),
+      0 0 30px rgba(255, 255, 255, 0.1);
+  }
+  
+  .water-droplet:hover {
+    transform: perspective(1800px) rotateX(3deg) translateZ(0);
+    border-radius: 50px 50px 50px 6px;
+    box-shadow: 
+      /* Enhanced far shadow */
+      0 60px 180px -24px rgba(0, 0, 0, 0.85),
+      0 52px 156px -22px rgba(0, 0, 0, 0.8),
+      /* Main shadow - deeper */
+      0 48px 144px -20px rgba(0, 0, 0, 0.75),
+      0 40px 120px -18px rgba(0, 0, 0, 0.7),
+      /* Secondary shadow */
+      0 32px 96px -16px rgba(0, 0, 0, 0.65),
+      0 24px 72px -14px rgba(0, 0, 0, 0.6),
+      /* Mid shadow */
+      0 16px 48px -10px rgba(0, 0, 0, 0.55),
+      0 12px 36px -8px rgba(0, 0, 0, 0.5),
+      /* Close shadow */
+      0 8px 24px -6px rgba(0, 0, 0, 0.45),
+      0 6px 18px -4px rgba(0, 0, 0, 0.4),
+      /* Enhanced top highlight */
+      inset 0 4px 0 0 rgba(255, 255, 255, 0.7),
+      inset 0 8px 16px 0 rgba(255, 255, 255, 0.45),
+      inset 0 12px 24px 0 rgba(255, 255, 255, 0.35),
+      /* Stronger specular highlight */
+      inset -6px -6px 12px 0 rgba(255, 255, 255, 0.5),
+      inset -10px -10px 20px 0 rgba(255, 255, 255, 0.35),
+      inset -14px -14px 28px 0 rgba(255, 255, 255, 0.25),
+      /* Deeper ambient occlusion */
+      inset 6px 6px 12px 0 rgba(0, 0, 0, 0.35),
+      inset 10px 10px 20px 0 rgba(0, 0, 0, 0.3),
+      inset 14px 14px 28px 0 rgba(0, 0, 0, 0.25),
+      /* Enhanced side shadows */
+      -5px 0 16px 0 rgba(0, 0, 0, 0.4),
+      5px 0 16px 0 rgba(0, 0, 0, 0.35),
+      /* Stronger glow */
+      0 0 0 1px rgba(255, 255, 255, 0.18),
+      0 0 80px rgba(255, 255, 255, 0.2),
+      0 0 120px rgba(6, 182, 212, 0.15),
+      0 0 160px rgba(6, 182, 212, 0.1);
+  }
+  
+  .water-droplet::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 45%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.25) 0%,
+      rgba(255, 255, 255, 0.15) 20%,
+      rgba(255, 255, 255, 0.08) 40%,
+      rgba(255, 255, 255, 0.04) 60%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 50px 50px 0 0;
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15);
+  }
+  
+  .water-droplet::after {
+    content: '';
+    position: absolute;
+    top: 12%;
+    left: 18%;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 0.8) 20%,
+      rgba(255, 255, 255, 0.5) 40%,
+      rgba(255, 255, 255, 0.2) 60%,
+      transparent 80%
+    );
+    pointer-events: none;
+    filter: blur(6px);
+    z-index: 2;
+    animation: pulse-highlight-3d 2.5s ease-in-out infinite;
+    box-shadow: 
+      0 0 30px rgba(255, 255, 255, 0.8),
+      0 0 50px rgba(255, 255, 255, 0.5),
+      inset 0 0 20px rgba(255, 255, 255, 0.6);
+  }
+  
+  
+  @keyframes pulse-highlight {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+
+  @keyframes pulse-highlight-3d {
+    0%, 100% {
+      opacity: 0.7;
+      transform: scale(1) translateZ(0);
+      filter: blur(6px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3) translateZ(15px);
+      filter: blur(4px);
+    }
+  }
+  
+  /* Container with water droplet effect - iOS 26 3D depth - Enhanced */
+  .droplet-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 32px 32px 32px 12px;
+    transform: perspective(1800px) rotateX(2deg) translateZ(0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Enhanced multi-layer 3D shadows - light from top-left */
+    box-shadow: 
+      /* Far shadow - very soft and large for depth */
+      0 52px 156px -22px rgba(0, 0, 0, 0.75),
+      0 44px 132px -20px rgba(0, 0, 0, 0.7),
+      /* Main depth shadow */
+      0 36px 108px -18px rgba(0, 0, 0, 0.65),
+      0 28px 84px -16px rgba(0, 0, 0, 0.6),
+      /* Secondary depth */
+      0 24px 72px -14px rgba(0, 0, 0, 0.55),
+      0 20px 60px -12px rgba(0, 0, 0, 0.5),
+      /* Mid shadow */
+      0 16px 48px -10px rgba(0, 0, 0, 0.45),
+      0 12px 36px -8px rgba(0, 0, 0, 0.4),
+      /* Close shadow for definition */
+      0 8px 24px -6px rgba(0, 0, 0, 0.35),
+      0 6px 18px -4px rgba(0, 0, 0, 0.3),
+      /* Top highlight - strong light source */
+      inset 0 4px 0 0 rgba(255, 255, 255, 0.5),
+      inset 0 8px 16px 0 rgba(255, 255, 255, 0.3),
+      inset 0 12px 24px 0 rgba(255, 255, 255, 0.2),
+      /* Top-left specular - enhanced */
+      inset -5px -5px 12px 0 rgba(255, 255, 255, 0.3),
+      inset -8px -8px 18px 0 rgba(255, 255, 255, 0.2),
+      inset -12px -12px 24px 0 rgba(255, 255, 255, 0.15),
+      /* Bottom-right ambient occlusion - deeper */
+      inset 6px 6px 12px 0 rgba(0, 0, 0, 0.25),
+      inset 9px 9px 18px 0 rgba(0, 0, 0, 0.2),
+      inset 12px 12px 24px 0 rgba(0, 0, 0, 0.15),
+      /* Side shadows for depth */
+      -4px 0 14px 0 rgba(0, 0, 0, 0.3),
+      4px 0 14px 0 rgba(0, 0, 0, 0.25),
+      /* Outer border glow */
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 40px rgba(255, 255, 255, 0.08);
+  }
+  
+  .droplet-container:hover {
+    transform: perspective(1800px) rotateX(2deg) translateZ(0);
+    box-shadow: 
+      /* Enhanced far shadow */
+      0 64px 192px -28px rgba(0, 0, 0, 0.85),
+      0 56px 168px -26px rgba(0, 0, 0, 0.8),
+      /* Main shadow - deeper */
+      0 52px 156px -24px rgba(0, 0, 0, 0.75),
+      0 44px 132px -22px rgba(0, 0, 0, 0.7),
+      /* Secondary shadow */
+      0 36px 108px -20px rgba(0, 0, 0, 0.65),
+      0 28px 84px -18px rgba(0, 0, 0, 0.6),
+      /* Mid shadow */
+      0 20px 60px -14px rgba(0, 0, 0, 0.55),
+      0 16px 48px -12px rgba(0, 0, 0, 0.5),
+      /* Close shadow */
+      0 12px 36px -10px rgba(0, 0, 0, 0.45),
+      0 8px 24px -8px rgba(0, 0, 0, 0.4),
+      /* Enhanced top highlight */
+      inset 0 5px 0 0 rgba(255, 255, 255, 0.6),
+      inset 0 10px 20px 0 rgba(255, 255, 255, 0.4),
+      inset 0 14px 28px 0 rgba(255, 255, 255, 0.3),
+      /* Stronger specular highlight */
+      inset -6px -6px 14px 0 rgba(255, 255, 255, 0.4),
+      inset -10px -10px 22px 0 rgba(255, 255, 255, 0.3),
+      inset -14px -14px 30px 0 rgba(255, 255, 255, 0.2),
+      /* Deeper ambient occlusion */
+      inset 7px 7px 14px 0 rgba(0, 0, 0, 0.3),
+      inset 11px 11px 22px 0 rgba(0, 0, 0, 0.25),
+      inset 15px 15px 30px 0 rgba(0, 0, 0, 0.2),
+      /* Enhanced side shadows */
+      -5px 0 18px 0 rgba(0, 0, 0, 0.4),
+      5px 0 18px 0 rgba(0, 0, 0, 0.35),
+      /* Stronger glow */
+      0 0 0 1px rgba(255, 255, 255, 0.15),
+      0 0 100px rgba(255, 255, 255, 0.15),
+      0 0 140px rgba(6, 182, 212, 0.12),
+      0 0 180px rgba(6, 182, 212, 0.08);
+  }
+  
+  .droplet-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0.12) 20%,
+      rgba(255, 255, 255, 0.08) 40%,
+      rgba(255, 255, 255, 0.04) 60%,
+      transparent 100%
+    );
+    pointer-events: none;
+    border-radius: 32px 32px 0 0;
+    z-index: 1;
+    box-shadow: inset 0 3px 6px rgba(255, 255, 255, 0.12);
+  }
+  
+  .droplet-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 25%;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.15) 0%,
+      rgba(0, 0, 0, 0.08) 50%,
+      transparent 100%
+    );
+    pointer-events: none;
+    border-radius: 0 0 32px 12px;
+    z-index: 1;
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* iOS 26 3D Light Source Simulation */
+  @keyframes light-sweep {
+    0% {
+      transform: translateX(-100%) translateY(-100%) rotate(45deg);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    100% {
+      transform: translateX(200%) translateY(200%) rotate(45deg);
+      opacity: 0;
+    }
+  }
+  
+  /* Enhanced pulse highlight with 3D effect */
+  @keyframes pulse-highlight {
+    0%, 100% {
+      opacity: 0.7;
+      transform: scale(1) translateZ(0);
+      filter: blur(8px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3) translateZ(10px);
+      filter: blur(6px);
+    }
+  }
+  
+  /* 3D Depth Animation */
+  @keyframes depth-breathe {
+    0%, 100% {
+      transform: translateZ(0);
+      box-shadow: 
+        0 20px 60px -12px rgba(0, 0, 0, 0.5),
+        0 12px 40px -8px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+      transform: translateZ(5px);
+      box-shadow: 
+        0 24px 72px -12px rgba(0, 0, 0, 0.55),
+        0 14px 44px -8px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.45);
+    }
+  }
+
+  /* Sparkle particle animations */
+  @keyframes sparkleFade {
+    0% {
+      opacity: 0.6;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.5);
+    }
+  }
+
+  @keyframes sparkleExpand {
+    0% {
+      opacity: 0.3;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+    50% {
+      opacity: 0.15;
+      transform: translate(-50%, -50%) scale(1.5);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(2);
+    }
+  }
+}
+

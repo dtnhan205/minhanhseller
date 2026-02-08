@@ -1,0 +1,690 @@
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { sellerApi, authApi } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
+import { useToastStore } from '@/store/toastStore';
+import { useTranslation } from '@/hooks/useTranslation';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Card from '@/components/ui/Card';
+import { Wallet, Plus, Copy, Check, Clock, XCircle, CreditCard, QrCode, AlertCircle } from 'lucide-react';
+import { formatCurrency, formatBalance } from '@/utils/format';
+import type { Payment, BankAccount } from '@/types';
+
+export default function TopupTab() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { success: showSuccess, error: showError } = useToastStore();
+  const [amountUSD, setAmountUSD] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPayment, setCurrentPayment] = useState<Payment | null>(null);
+  const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [exchangeRate, setExchangeRate] = useState<number>(25000);
+  const pollingIntervalRef = useRef<number | null>(null);
+  const { updateUser } = useAuthStore();
+
+  const quickAmounts = [10, 25, 50, 100, 200, 500];
+
+  // Load exchange rate
+  useEffect(() => {
+    const loadExchangeRate = async () => {
+      try {
+        const rate = await sellerApi.getExchangeRate();
+        setExchangeRate(rate.usdToVnd);
+      } catch (err) {
+        // console.error('Failed to load exchange rate:', err);
+      }
+    };
+    loadExchangeRate();
+  }, []);
+
+  // Calculate VND from USD
+  const calculateVND = (usd: number): number => {
+    return Math.round(usd * exchangeRate);
+  };
+
+  // Helper: Map tên ngân hàng sang bank code của VietQR (lowercase)
+  const getBankCode = (bankName: string): string => {
+    const bankMap: Record<string, string> = {
+      'Vietcombank': 'vcb',
+      'Vietinbank': 'ctg',
+      'BIDV': 'bid',
+      'Agribank': 'vba',
+      'Techcombank': 'tcb',
+      'MBBank': 'mbbank',
+      'MB Bank': 'mbbank',
+      'ACB': 'acb',
+      'VPBank': 'vpb',
+      'TPBank': 'tpb',
+      'Sacombank': 'stb',
+      'HDBank': 'hdb',
+      'DongA Bank': 'dab',
+      'Eximbank': 'eib',
+      'SHB': 'shb',
+      'OCB': 'ocb',
+      'SeABank': 'ssb',
+      'VIB': 'vib',
+      'VietABank': 'vab',
+      'ABBank': 'abb',
+      'Nam A Bank': 'nab',
+      'PGBank': 'pgb',
+      'PublicBank': 'pbv',
+      'Bac A Bank': 'bab',
+      'SCB': 'scb',
+      'VietBank': 'vccb',
+      'Kienlongbank': 'klb',
+      'GPBank': 'gpb',
+      'BaoVietBank': 'bvb',
+      'VietCapitalBank': 'vcb',
+    };
+
+    // Tìm bank code (case insensitive)
+    for (const [name, code] of Object.entries(bankMap)) {
+      if (bankName.toLowerCase().includes(name.toLowerCase())) {
+        return code;
+      }
+    }
+
+    // Default: vcb (Vietcombank)
+    return 'vcb';
+  };
+
+  useEffect(() => {
+    loadPendingPayments();
+  }, []);
+
+  // Generate QR code when currentPayment changes
+  useEffect(() => {
+    if (currentPayment && typeof currentPayment.bankAccountId === 'object' && currentPayment.bankAccountId) {
+      const bankAccount = currentPayment.bankAccountId as BankAccount;
+      const bankCode = getBankCode(bankAccount.bankName);
+      const accountNumber = bankAccount.accountNumber;
+      const content = currentPayment.transferContent;
+      const accountName = bankAccount.accountHolder;
+
+      // VietQR API format - sử dụng amountVND
+      const amountVND = currentPayment.amountVND || currentPayment.amount;
+      const qrUrl = `https://img.vietqr.io/image/${bankCode}-${accountNumber}-compact2.jpg?amount=${amountVND}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(accountName)}`;
+      setQrCodeUrl(qrUrl);
+    } else {
+      setQrCodeUrl('');
+    }
+  }, [currentPayment]);
+
+  // Polling để kiểm tra payment status khi có currentPayment pending
+  useEffect(() => {
+    if (currentPayment && currentPayment.status === 'pending') {
+      // Bắt đầu polling mỗi 5 giây
+      pollingIntervalRef.current = window.setInterval(async () => {
+        try {
+          const updatedPayment = await sellerApi.getPaymentDetail(currentPayment._id);
+          
+          // Nếu payment đã completed
+          if (updatedPayment.status === 'completed' && currentPayment.status === 'pending') {
+            // Dừng polling
+            if (pollingIntervalRef.current) {
+              window.clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            
+            // Cập nhật currentPayment
+            setCurrentPayment(updatedPayment);
+            
+            // Refresh user balance
+            try {
+              const updatedUser = await authApi.me();
+              updateUser(updatedUser);
+            } catch (err) {
+              // console.error('Failed to refresh user:', err);
+            }
+            
+            // Refresh pending payments list
+            await loadPendingPayments();
+            
+            // Hiển thị thông báo thành công
+            showSuccess(t('topup.paymentCompleted') || `Thanh toán thành công! Đã cộng ${formatCurrency(updatedPayment.amountUSD || 0, true)} vào ví.`);
+          } else if (updatedPayment.status !== currentPayment.status) {
+            // Cập nhật nếu status thay đổi
+            setCurrentPayment(updatedPayment);
+            await loadPendingPayments();
+          }
+        } catch (err) {
+          // console.error('Failed to check payment status:', err);
+        }
+      }, 5000); // Poll mỗi 5 giây
+    } else {
+      // Dừng polling nếu không có payment pending
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+
+    // Cleanup khi component unmount hoặc currentPayment thay đổi
+    return () => {
+      if (pollingIntervalRef.current) {
+        window.clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [currentPayment, updateUser, showSuccess, t]);
+
+  const loadPendingPayments = async () => {
+    try {
+      const payments = await sellerApi.getPayments();
+      const pending = payments.filter((p: Payment) => p.status === 'pending');
+      setPendingPayments(pending);
+    } catch (err) {
+      // console.error('Failed to load pending payments:', err);
+    }
+  };
+
+  const handleOpenPayment = async (payment: Payment) => {
+    try {
+      // Fetch full payment details to ensure we have bankAccountId populated
+      const fullPayment = await sellerApi.getPaymentDetail(payment._id);
+      setCurrentPayment(fullPayment);
+      
+      // Scroll to payment information section
+      setTimeout(() => {
+        const paymentSection = document.getElementById('payment-information');
+        if (paymentSection) {
+          paymentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } catch (err) {
+      // console.error('Failed to load payment details:', err);
+      // Fallback: use the payment from list
+      setCurrentPayment(payment);
+    }
+  };
+
+  const handleTopup = async () => {
+    // Validate and parse amount
+    const trimmedAmount = amountUSD.trim();
+    if (!trimmedAmount) {
+      showError('Please enter an amount');
+      return;
+    }
+    
+    const numUSD = parseFloat(trimmedAmount);
+    if (isNaN(numUSD) || numUSD <= 0 || !isFinite(numUSD)) {
+      showError('Please enter a valid amount');
+      return;
+    }
+    
+    // Prevent extremely large amounts (security check)
+    if (numUSD > 1000000) {
+      showError('Amount is too large. Maximum is $1,000,000');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const payment = await sellerApi.topup({ amountUSD: numUSD });
+      setCurrentPayment(payment);
+      showSuccess(t('topup.paymentCreated'));
+      setAmountUSD('');
+      await loadPendingPayments();
+      
+      // Scroll to payment information section after creating invoice
+      setTimeout(() => {
+        const paymentSection = document.getElementById('payment-information');
+        if (paymentSection) {
+          paymentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Topup failed';
+      showError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      showSuccess(t('topup.copied'));
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      showError('Failed to copy');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+            <Clock className="w-3 h-3" />
+            {t('topup.statusPending')}
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
+            <Check className="w-3 h-3" />
+            {t('topup.statusCompleted')}
+          </span>
+        );
+      case 'expired':
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+            <XCircle className="w-3 h-3" />
+            {t('topup.statusExpired')}
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Current Balance Card */}
+        <div className="lg:col-span-1">
+          <Card 
+            className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-cyan-500/30"
+            style={{
+              backdropFilter: 'blur(2px) saturate(120%)',
+              WebkitBackdropFilter: 'blur(2px) saturate(120%)',
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                <Wallet className="w-7 h-7 text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm mb-1">{t('topup.currentBalance')}</p>
+                <p className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
+                  {formatBalance(user?.wallet || 0)}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Topup Form */}
+        <div className="lg:col-span-2">
+          <Card 
+            title={t('topup.addFunds')}
+            style={{
+              backdropFilter: 'blur(2px) saturate(120%)',
+              WebkitBackdropFilter: 'blur(2px) saturate(120%)',
+            }}
+          >
+            <div className="space-y-6">
+              {/* Exchange Rate Info */}
+              <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300 text-sm">{t('topup.exchangeRate')}</span>
+                  <span className="text-blue-400 font-bold">
+                    1 USD = {formatCurrency(exchangeRate)} VNĐ
+                  </span>
+                </div>
+              </div>
+
+              {/* Amount Input (USD) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {t('topup.amountUSD')}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg font-semibold">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    placeholder={t('topup.enterAmountUSD')}
+                    value={amountUSD}
+                    onChange={(e) => setAmountUSD(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="pl-8 bg-black/50 border-gray-800 focus:border-cyan-500 text-lg"
+                  />
+                </div>
+                {amountUSD && parseFloat(amountUSD) > 0 && (
+                  <div className="mt-2 text-sm text-gray-400">
+                    {t('topup.amountVND')}: <span className="text-green-400 font-semibold">{formatCurrency(calculateVND(parseFloat(amountUSD)))} VNĐ</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Amount Buttons */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2 sm:mb-3">
+                  {t('topup.quickAmount')}
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
+                  {quickAmounts.map((quickAmount) => (
+                    <button
+                      key={quickAmount}
+                      type="button"
+                      onClick={() => setAmountUSD(quickAmount.toString())}
+                      className={`py-2 sm:py-3 px-3 sm:px-4 rounded-lg sm:rounded-xl font-semibold transition-all text-sm sm:text-base ${
+                        amountUSD === quickAmount.toString()
+                          ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-lg'
+                          : 'bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-300 hover:text-white hover:border-cyan-500/50'
+                      }`}
+                    >
+                      ${quickAmount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              {amountUSD && parseFloat(amountUSD) > 0 && (
+                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">{t('topup.amountToPay')}</span>
+                      <span className="text-purple-400 font-bold text-xl">
+                        {formatCurrency(calculateVND(parseFloat(amountUSD)))} VNĐ
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Topup Button */}
+              <Button
+                onClick={handleTopup}
+                className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 shadow-lg"
+                isLoading={isLoading}
+                disabled={!amountUSD || parseFloat(amountUSD) <= 0}
+              >
+                <Plus className="w-5 h-5 inline mr-2" />
+                {isLoading ? t('topup.processing') : t('topup.topupWallet')}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Payment Information */}
+      {currentPayment && (
+        <Card 
+          id="payment-information" 
+          className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-rose-500/10 border-purple-500/30 animate-fade-in overflow-hidden"
+          style={{
+            backdropFilter: 'blur(2px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(2px) saturate(120%)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-purple-500/20">
+            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+              <CreditCard className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 bg-clip-text text-transparent">
+                {t('topup.paymentCreated')}
+              </h2>
+              <p className="text-sm text-gray-400 mt-0.5">{t('topup.transferNote')}</p>
+            </div>
+          </div>
+          
+          {typeof currentPayment.bankAccountId === 'object' && currentPayment.bankAccountId && (
+            <div className="space-y-6">
+              {/* QR Code Section - Detailed */}
+              {qrCodeUrl && (
+                <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-2xl p-8 border border-gray-700/50 shadow-xl">
+                  <div className="flex items-center justify-center gap-2 mb-6">
+                    <QrCode className="w-6 h-6 text-purple-400" />
+                    <h3 className="text-xl font-semibold text-gray-200">{t('topup.scanQR')}</h3>
+                  </div>
+                  
+                  <div className="flex flex-col lg:flex-row items-center lg:items-start gap-4 sm:gap-6 lg:gap-8">
+                    {/* Left Side - QR Code Card */}
+                    <div className="flex-shrink-0 w-full lg:w-auto">
+                      <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl w-full max-w-md mx-auto lg:mx-0">
+                        {/* QR Code Image */}
+                        <div className="flex justify-center mb-3 sm:mb-4">
+                          <img 
+                            src={qrCodeUrl} 
+                            alt="QR Code" 
+                            className="w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-lg"
+                          />
+                        </div>
+                        
+                        {/* Divider */}
+                        <div className="h-px bg-gray-200 mb-4" />
+                        
+                        {/* Bank Info Below QR */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-600 text-sm font-medium">{(currentPayment.bankAccountId as BankAccount).accountHolder}</span>
+                          <span className="text-gray-600 text-sm font-medium font-mono">{(currentPayment.bankAccountId as BankAccount).accountNumber}</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-gray-600 text-sm font-medium">Số tiền: </span>
+                          <span className="text-gray-900 font-bold">{formatCurrency(currentPayment.amountVND || currentPayment.amount)} VNĐ</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Side - Payment Details */}
+                    <div className="flex-1 w-full max-w-md lg:max-w-none space-y-3 sm:space-y-4">
+                      {/* Detailed Payment Information */}
+                      <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-xl p-6 space-y-4 border border-gray-700/50 shadow-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400 text-sm">{t('topup.accountHolder') || 'Chủ tài khoản'}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-semibold">{(currentPayment.bankAccountId as BankAccount).accountHolder}</span>
+                            <button
+                              onClick={() => copyToClipboard((currentPayment.bankAccountId as BankAccount).accountHolder)}
+                              className="p-1.5 hover:bg-purple-500/20 rounded-lg transition-colors"
+                              title="Copy"
+                            >
+                              {copied ? (
+                                <Check className="w-4 h-4 text-green-400" />
+                              ) : (
+                                <Copy className="w-4 h-4 text-gray-400 hover:text-purple-400" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent" />
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400 text-sm">{t('topup.accountNumber') || 'Số tài khoản'}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-semibold font-mono">{(currentPayment.bankAccountId as BankAccount).accountNumber}</span>
+                            <button
+                              onClick={() => copyToClipboard((currentPayment.bankAccountId as BankAccount).accountNumber)}
+                              className="p-1.5 hover:bg-purple-500/20 rounded-lg transition-colors"
+                              title="Copy"
+                            >
+                              {copied ? (
+                                <Check className="w-4 h-4 text-green-400" />
+                              ) : (
+                                <Copy className="w-4 h-4 text-gray-400 hover:text-purple-400" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent" />
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400 text-sm">{t('topup.amountVND')}:</span>
+                          <span className="text-green-400 font-bold text-lg">{formatCurrency(currentPayment.amountVND || currentPayment.amount)} VNĐ</span>
+                        </div>
+                        
+                        {currentPayment.amountUSD && (
+                          <>
+                            <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent" />
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-400 text-sm">{t('topup.amountUSD')}:</span>
+                              <span className="text-blue-400 font-bold text-lg">{formatCurrency(currentPayment.amountUSD, true)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Transfer Content */}
+                      <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-5 border border-purple-500/30 shadow-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertCircle className="w-5 h-5 text-purple-400" />
+                          <h4 className="text-sm font-semibold text-gray-200">{t('topup.transferContent')}</h4>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 bg-black/40 rounded-lg p-3 border border-purple-500/30">
+                            <p className="font-mono text-lg font-bold text-purple-400 text-center tracking-wider">
+                              {currentPayment.transferContent}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(currentPayment.transferContent)}
+                            className="px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center"
+                            title={copied ? t('topup.copied') : 'Copy'}
+                          >
+                            {copied ? (
+                              <Check className="w-5 h-5 text-white" />
+                            ) : (
+                              <Copy className="w-5 h-5 text-white" />
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-3 text-center">
+                          {t('topup.transferNote')}
+                        </p>
+                      </div>
+
+                      {/* Instruction */}
+                      <p className="text-xs text-gray-400 text-center">
+                        {t('topup.qrNote')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Status and Expiry */}
+              <div className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center border border-yellow-500/30">
+                      <Clock className="w-6 h-6 text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400 mb-1">{t('topup.status')}</p>
+                      {getStatusBadge(currentPayment.status)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center border border-red-500/30">
+                      <Clock className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400 mb-1">{t('topup.expiresAt')}</p>
+                      <p className="text-white font-semibold text-base">
+                        {new Date(currentPayment.expiresAt).toLocaleString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Pending Payments List */}
+      {pendingPayments.length > 0 && (
+        <Card 
+          className="animate-fade-in bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-gray-700/50"
+          style={{
+            backdropFilter: 'blur(2px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(2px) saturate(120%)',
+          }}
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-yellow-500/20 rounded-xl flex items-center justify-center border border-yellow-500/30">
+              <Clock className="w-5 h-5 text-yellow-400" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-200">{t('topup.pendingPayment')}</h2>
+          </div>
+          <div className="space-y-4">
+            {pendingPayments.map((payment) => (
+              <div
+                key={payment._id}
+                onClick={() => handleOpenPayment(payment)}
+                className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-5 hover:border-yellow-500/50 transition-all shadow-lg hover:shadow-xl cursor-pointer group"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex-1 min-w-[200px]">
+                        <p className="text-xs text-gray-400 mb-1">{t('topup.transferContent')}</p>
+                        <p className="font-mono text-lg font-bold text-purple-400">{payment.transferContent}</p>
+                      </div>
+                      {getStatusBadge(payment.status)}
+                    </div>
+                    <div className="flex items-center gap-4 flex-wrap text-sm">
+                      <div>
+                        <span className="text-gray-400">{t('topup.amountUSD')}: </span>
+                        <span className="text-blue-400 font-semibold">
+                          {payment.amountUSD ? formatCurrency(payment.amountUSD, true) : 'N/A'}
+                        </span>
+                      </div>
+                      <span className="text-gray-600">•</span>
+                      <div>
+                        <span className="text-gray-400">{t('topup.amountVND')}: </span>
+                        <span className="text-green-400 font-semibold">
+                          {formatCurrency(payment.amountVND || payment.amount)} VNĐ
+                        </span>
+                      </div>
+                      <span className="text-gray-600">•</span>
+                      <div>
+                        <span className="text-gray-400">{t('topup.expiresAt')}: </span>
+                        <span className="text-red-400 font-semibold">
+                          {new Date(payment.expiresAt).toLocaleString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the parent onClick
+                      copyToClipboard(payment.transferContent);
+                    }}
+                    className="px-4 py-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 rounded-xl transition-all flex items-center justify-center min-w-[48px]"
+                    title={t('topup.copyContent')}
+                  >
+                    {copied ? (
+                      <Check className="w-5 h-5 text-green-400" />
+                    ) : (
+                      <Copy className="w-5 h-5 text-purple-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
