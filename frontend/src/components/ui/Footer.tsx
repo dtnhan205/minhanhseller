@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Heart, MessageCircle, Send, Shield, Info, HelpCircle, Scale } from 'lucide-react';
+import { Heart, Send, Shield, Info, HelpCircle, Scale } from 'lucide-react';
 
 export default function Footer() {
   const { t } = useTranslation();

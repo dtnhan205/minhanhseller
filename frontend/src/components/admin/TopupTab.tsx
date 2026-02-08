@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { sellerApi, authApi } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 import { useToastStore } from '@/store/toastStore';
@@ -13,7 +12,6 @@ import type { Payment, BankAccount } from '@/types';
 
 export default function TopupTab() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { success: showSuccess, error: showError } = useToastStore();
   const [amountUSD, setAmountUSD] = useState('');

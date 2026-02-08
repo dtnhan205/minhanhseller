@@ -1,5 +1,5 @@
 import { useTranslation } from '@/hooks/useTranslation';
-import { HelpCircle, MessageCircle, Send, Clock } from 'lucide-react';
+import { HelpCircle, Send, Clock } from 'lucide-react';
 
 export default function SupportPage() {
   const { t } = useTranslation();
