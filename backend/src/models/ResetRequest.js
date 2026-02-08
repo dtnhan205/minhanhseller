@@ -6,7 +6,6 @@ const resetRequestSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
       required: true,
-      index: true,
     },
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
