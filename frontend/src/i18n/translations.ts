@@ -577,7 +577,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'footer.allRightsReserved': 'Tất cả quyền được bảo lưu.',
     'footer.madeWith': 'Được tạo',
     'footer.by': 'bởi',
-    'footer.team': 'Anh Việt',
+    'footer.team': 'DLM',
     
     // About Page
     'about.title': 'Về chúng tôi',
@@ -914,7 +914,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'footer.allRightsReserved': 'All rights reserved.',
     'footer.madeWith': 'Made',
     'footer.by': 'by',
-    'footer.team': 'Anh Viet',
+    'footer.team': 'DLM',
     
     // About Page
     'about.title': 'About Us',
