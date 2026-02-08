@@ -73,7 +73,7 @@ export default function SupportPage() {
           <div className="space-y-4">
 
             <a
-              href="https://t.me/vanhdzsss"
+              href="https://t.me/dlmzc"
               target="_blank"
               rel="noopener noreferrer"
               className="droplet-container p-4 flex items-center gap-4 hover:scale-[1.02] transition-transform cursor-pointer group"

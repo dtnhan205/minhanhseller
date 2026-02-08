@@ -133,7 +133,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <a 
-                  href="https://t.me/vanhdzsss"
+                  href="https://t.me/dlmzc"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white/70 hover:text-white transition-all duration-300 text-sm flex items-center gap-3 group"
