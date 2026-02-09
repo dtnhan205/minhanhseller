@@ -6,7 +6,7 @@ const { User } = require("../models/User");
  * Kiểm tra xem response có phải là format MB Bank không
  */
 function isMBBankFormat(data) {
-  // MB Bank trả về array trực tiếp hoặc có các field đặc trưng
+  // Format 1: MB Bank trả về array trực tiếp
   if (Array.isArray(data)) {
     // Kiểm tra phần tử đầu tiên có các field của MB Bank không
     if (data.length > 0 && data[0]) {
@@ -16,6 +16,21 @@ function isMBBankFormat(data) {
              data[0].hasOwnProperty('debitAmount');
     }
   }
+  
+  // Format 2: MB Bank trả về object có TranList
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    // Kiểm tra có TranList và là array
+    if (data.TranList && Array.isArray(data.TranList) && data.TranList.length > 0) {
+      const firstTxn = data.TranList[0];
+      return firstTxn && (
+        firstTxn.hasOwnProperty('refNo') || 
+        firstTxn.hasOwnProperty('tranId') || 
+        firstTxn.hasOwnProperty('creditAmount') || 
+        firstTxn.hasOwnProperty('debitAmount')
+      );
+    }
+  }
+  
   return false;
 }
 
@@ -41,24 +56,38 @@ async function fetchBankTransactions(bankAccount) {
     // Kiểm tra xem có phải format MB Bank không
     if (isMBBankFormat(response.data)) {
       // Parse MB Bank format
-      // Format MB Bank: Array of transactions
+      // Format MB Bank có 2 loại:
+      // Format 1: Array trực tiếp
+      // Format 2: Object có TranList
       // {
-      //   "refNo": "FT26041592608140",
-      //   "tranId": "FT26041592608140",
-      //   "postingDate": "10/02/2026 23:59:59",
-      //   "transactionDate": "10/02/2026 00:06:00",
-      //   "accountNo": "0919847223",
-      //   "creditAmount": "286000",
-      //   "debitAmount": "0",
-      //   "currency": "VND",
-      //   "description": "Duong Quoc Tien dlm196183- Ma GD ACSP/ sk539788",
-      //   "addDescription": "dlm196183- Ma GD ACSP/ sk539788 ",
-      //   "availableBalance": "6774603",
-      //   "beneficiaryAccount": "",
-      //   "transactionType": "BI2B"
+      //   "status": "success",
+      //   "message": "Thành công",
+      //   "TranList": [
+      //     {
+      //       "refNo": "FT24096416707683D85",
+      //       "tranId": "FT24096416707683\\D85",
+      //       "postingDate": "05/04/2024 21:14:00",
+      //       "transactionDate": "05/04/2024 21:14:00",
+      //       "accountNo": "990919072000",
+      //       "creditAmount": "30000",
+      //       "debitAmount": "0",
+      //       "currency": "VND",
+      //       "description": "CUSTOMER Thanh toan QR-hd3756. TU: TRAN HOANG HUY",
+      //       "availableBalance": "3310398",
+      //       "beneficiaryAccount": ""
+      //     }
+      //   ]
       // }
       
-      const transactions = Array.isArray(response.data) ? response.data : [];
+      // Lấy transactions từ cả hai format
+      let transactions = [];
+      if (Array.isArray(response.data)) {
+        // Format 1: Array trực tiếp
+        transactions = response.data;
+      } else if (response.data.TranList && Array.isArray(response.data.TranList)) {
+        // Format 2: Object có TranList
+        transactions = response.data.TranList;
+      }
       
       console.log(`[BankTransactionService] Detected MB Bank format, found ${transactions.length} transactions`);
       
@@ -72,20 +101,23 @@ async function fetchBankTransactions(bankAccount) {
         // Xác định type: creditAmount > 0 là tiền vào (IN), debitAmount > 0 là tiền ra (OUT)
         const isIncoming = creditAmount > 0;
         
-        // Parse date từ "10/02/2026 23:59:59" hoặc "10/02/2026 00:06:00"
+        // Parse date từ "05/04/2024 21:14:00" hoặc "10/02/2026 00:06:00"
         const dateTime = txn.transactionDate || txn.postingDate || "";
         const dateParts = dateTime.split(" ");
-        const date = dateParts[0] || ""; // "10/02/2026"
-        const time = dateParts[1] || ""; // "00:06:00" hoặc "23:59:59"
+        const date = dateParts[0] || ""; // "05/04/2024"
+        const time = dateParts[1] || ""; // "21:14:00" hoặc "00:06:00"
         
-        // Kết hợp description và addDescription
+        // Kết hợp description và addDescription (nếu có)
         const description = [txn.description, txn.addDescription]
           .filter(Boolean)
           .join(" ")
           .trim();
         
+        // Xử lý tranId có thể chứa backslash (ví dụ: "FT24096416707683\\D85")
+        const transactionID = (txn.refNo || txn.tranId || "").replace(/\\/g, "");
+        
         return {
-          transactionID: txn.refNo || txn.tranId || "",
+          transactionID: transactionID,
           amount: amount,
           content: description,
           description: description,
