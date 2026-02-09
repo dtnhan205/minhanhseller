@@ -3,8 +3,26 @@ const { Payment } = require("../models/Payment");
 const { User } = require("../models/User");
 
 /**
+ * Kiểm tra xem response có phải là format MB Bank không
+ */
+function isMBBankFormat(data) {
+  // MB Bank trả về array trực tiếp hoặc có các field đặc trưng
+  if (Array.isArray(data)) {
+    // Kiểm tra phần tử đầu tiên có các field của MB Bank không
+    if (data.length > 0 && data[0]) {
+      return data[0].hasOwnProperty('refNo') || 
+             data[0].hasOwnProperty('tranId') || 
+             data[0].hasOwnProperty('creditAmount') || 
+             data[0].hasOwnProperty('debitAmount');
+    }
+  }
+  return false;
+}
+
+/**
  * Lấy lịch sử giao dịch từ API ngân hàng
  * Sử dụng API từ BankAccount.apiUrl
+ * Hỗ trợ cả format sieuthicode.net và MB Bank
  */
 async function fetchBankTransactions(bankAccount) {
   try {
@@ -19,6 +37,64 @@ async function fetchBankTransactions(bankAccount) {
     const response = await axios.get(apiUrl, {
       timeout: 15000, // 15 giây timeout
     });
+
+    // Kiểm tra xem có phải format MB Bank không
+    if (isMBBankFormat(response.data)) {
+      // Parse MB Bank format
+      // Format MB Bank: Array of transactions
+      // {
+      //   "refNo": "FT26041592608140",
+      //   "tranId": "FT26041592608140",
+      //   "postingDate": "10/02/2026 23:59:59",
+      //   "transactionDate": "10/02/2026 00:06:00",
+      //   "accountNo": "0919847223",
+      //   "creditAmount": "286000",
+      //   "debitAmount": "0",
+      //   "currency": "VND",
+      //   "description": "Duong Quoc Tien dlm196183- Ma GD ACSP/ sk539788",
+      //   "addDescription": "dlm196183- Ma GD ACSP/ sk539788 ",
+      //   "availableBalance": "6774603",
+      //   "beneficiaryAccount": "",
+      //   "transactionType": "BI2B"
+      // }
+      
+      const transactions = Array.isArray(response.data) ? response.data : [];
+      
+      console.log(`[BankTransactionService] Detected MB Bank format, found ${transactions.length} transactions`);
+      
+      // Transform MB Bank transactions để phù hợp với format hệ thống
+      return transactions.map((txn) => {
+        // Parse amount: creditAmount là tiền vào, debitAmount là tiền ra
+        const creditAmount = parseInt(txn.creditAmount || "0") || 0;
+        const debitAmount = parseInt(txn.debitAmount || "0") || 0;
+        const amount = creditAmount > 0 ? creditAmount : debitAmount;
+        
+        // Xác định type: creditAmount > 0 là tiền vào (IN), debitAmount > 0 là tiền ra (OUT)
+        const isIncoming = creditAmount > 0;
+        
+        // Parse date từ "10/02/2026 23:59:59" hoặc "10/02/2026 00:06:00"
+        const dateTime = txn.transactionDate || txn.postingDate || "";
+        const dateParts = dateTime.split(" ");
+        const date = dateParts[0] || ""; // "10/02/2026"
+        const time = dateParts[1] || ""; // "00:06:00" hoặc "23:59:59"
+        
+        // Kết hợp description và addDescription
+        const description = [txn.description, txn.addDescription]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        
+        return {
+          transactionID: txn.refNo || txn.tranId || "",
+          amount: amount,
+          content: description,
+          description: description,
+          date: date,
+          time: time,
+          type: isIncoming ? "IN" : "OUT",
+        };
+      });
+    }
 
     // Parse response từ sieuthicode.net API hoặc tương tự
     // Format response:

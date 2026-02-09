@@ -521,14 +521,14 @@ async function manualTopupSeller(req, res) {
   });
 }
 
-// Helper: Tạo mã nội dung chuyển khoản unique (dtnxxxxx)
+// Helper: Tạo mã nội dung chuyển khoản unique (dlmxxxxx)
 async function generateTransferContent() {
   let attempts = 0;
   const maxAttempts = 100;
 
   while (attempts < maxAttempts) {
     const randomNum = Math.floor(Math.random() * 1000000).toString().padStart(6, "0");
-    const transferContent = `dtn${randomNum}`;
+    const transferContent = `dlm${randomNum}`;
 
     const { Payment } = require("../models/Payment");
     const existing = await Payment.findOne({ transferContent });
