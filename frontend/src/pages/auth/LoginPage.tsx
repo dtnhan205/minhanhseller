@@ -95,7 +95,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold">
               <span className="bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
-                RESELLER VN
+                RESELLER Lynx
               </span>
             </h1>
           </div>
