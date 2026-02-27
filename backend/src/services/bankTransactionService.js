@@ -50,7 +50,7 @@ async function fetchBankTransactions(bankAccount) {
     const apiUrl = bankAccount.apiUrl.trim();
     
     const response = await axios.get(apiUrl, {
-      timeout: 15000, // 15 giây timeout
+      timeout: 10000, // 15 giây timeout
     });
 
     // Kiểm tra xem có phải format MB Bank không

@@ -30,6 +30,7 @@ export type TranslationKey =
   | 'auth.enterBoth'
   | 'auth.loginFailed'
   | 'auth.loginSuccess'
+  | 'auth.noAccount'
   
   // Dashboard
   | 'dashboard.title'
@@ -43,11 +44,6 @@ export type TranslationKey =
   | 'nav.transactions'
   | 'nav.topup'
   | 'nav.hacks'
-  
-  // Dashboard
-  | 'dashboard.title'
-  | 'dashboard.balance'
-  | 'dashboard.welcome'
   
   // Generate Page
   | 'generate.title'
@@ -74,6 +70,7 @@ export type TranslationKey =
   | 'generate.purchased'
   | 'generate.copyAllKeys'
   | 'generate.seller'
+  | 'generate.statistics'
   | 'generate.totalProducts'
   | 'generate.available'
   | 'generate.totalValue'
@@ -106,6 +103,12 @@ export type TranslationKey =
   | 'history.resetPending'
   | 'history.resetApproved'
   | 'history.resetRejected'
+  | 'history.table.orderId'
+  | 'history.table.key'
+  | 'history.table.product'
+  | 'history.table.price'
+  | 'history.table.date'
+  | 'history.table.action'
   
   // Topup Page
   | 'topup.title'
@@ -124,7 +127,6 @@ export type TranslationKey =
   | 'topup.accountHolder'
   | 'topup.transferContent'
   | 'topup.copyContent'
-  | 'topup.copyContent'
   | 'topup.copied'
   | 'topup.pendingPayment'
   | 'topup.expiresAt'
@@ -141,6 +143,10 @@ export type TranslationKey =
   | 'topup.amountVND'
   | 'topup.enterAmountUSD'
   | 'topup.amountToPay'
+  | 'topup.leaderboard'
+  | 'topup.rank'
+  | 'topup.user'
+  | 'topup.totalTopup'
   
   // Transactions Page
   | 'transactions.title'
@@ -340,6 +346,8 @@ export type TranslationKey =
   | 'admin.purchasedAt'
   | 'admin.hacks';
 
+export type Language = 'vi' | 'en';
+
 export const translations: Record<Language, Record<TranslationKey, string>> = {
   vi: {
     // Common
@@ -373,6 +381,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'auth.enterBoth': 'Vui lòng nhập cả email và mật khẩu',
     'auth.loginFailed': 'Đăng nhập thất bại',
     'auth.loginSuccess': 'Đăng nhập thành công!',
+    'auth.noAccount': 'Bạn chưa có tài khoản?',
     
     // Dashboard
     'dashboard.title': 'Reseller Dashboard',
@@ -412,6 +421,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'generate.purchased': 'đã mua',
     'generate.copyAllKeys': 'Sao Chép Tất Cả Keys',
     'generate.seller': 'Seller',
+    'generate.statistics': 'Thống kê',
     'generate.totalProducts': 'Tổng Sản phẩm',
     'generate.available': 'Có sẵn',
     'generate.totalValue': 'Tổng Giá trị',
@@ -444,6 +454,12 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'history.resetPending': 'Đang chờ',
     'history.resetApproved': 'Đã reset',
     'history.resetRejected': 'Không thể reset',
+    'history.table.orderId': 'Mã đơn',
+    'history.table.key': 'Key',
+    'history.table.product': 'Sản phẩm',
+    'history.table.price': 'Giá',
+    'history.table.date': 'Ngày',
+    'history.table.action': 'Thao tác',
     
     // Topup Page
     'topup.title': 'Nạp tiền',
@@ -478,6 +494,10 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'topup.amountVND': 'Số tiền cần thanh toán',
     'topup.enterAmountUSD': 'Nhập số tiền USD...',
     'topup.amountToPay': 'Số tiền cần thanh toán',
+    'topup.leaderboard': 'Bảng xếp hạng nạp tiền',
+    'topup.rank': 'Hạng',
+    'topup.user': 'Người dùng',
+    'topup.totalTopup': 'Tổng nạp',
     
     // Transactions Page
     'transactions.title': 'Lịch sử Nạp tiền',
@@ -577,7 +597,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'footer.allRightsReserved': 'Tất cả quyền được bảo lưu.',
     'footer.madeWith': 'Được tạo',
     'footer.by': 'bởi',
-    'footer.team': 'Lynx',
+    'footer.team': 'DLM',
     
     // About Page
     'about.title': 'Về chúng tôi',
@@ -590,7 +610,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'about.visionText': 'Trở thành nền tảng hàng đầu trong lĩnh vực quản lý và phân phối key sản phẩm, được tin dùng bởi hàng nghìn người dùng trên toàn quốc.',
     'about.values': 'Giá trị cốt lõi',
     'about.valueSecurity': 'Bảo mật',
-    'about.valueSecurityText': 'Bảo vệ thông tin và dữ liệu người dùng với công nghệ mã hóa tiên tiến nhất.',
+    'about.valueSecurityText': 'Bảo vệ thông tin và dữ liệu người dùng với công nghệ mã hóa tiến tiến nhất.',
     'about.valueReliability': 'Đáng tin cậy',
     'about.valueReliabilityText': 'Hệ thống ổn định, hoạt động 24/7 với độ tin cậy cao.',
     'about.valueInnovation': 'Đổi mới',
@@ -623,7 +643,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'privacy.usageTitle': 'Sử dụng thông tin',
     'privacy.usageText': 'Thông tin của bạn được sử dụng để cung cấp dịch vụ, xử lý giao dịch, và cải thiện trải nghiệm người dùng. Chúng tôi không chia sẻ thông tin với bên thứ ba mà không có sự đồng ý của bạn.',
     'privacy.protectionTitle': 'Bảo vệ thông tin',
-    'privacy.protectionText': 'Chúng tôi sử dụng công nghệ mã hóa SSL/TLS để bảo vệ dữ liệu trong quá trình truyền tải. Tất cả dữ liệu được lưu trữ trên máy chủ an toàn với các biện pháp bảo mật tiên tiến.',
+    'privacy.protectionText': 'Chúng tôi sử dụng công nghệ mã hóa SSL/TLS để bảo vệ dữ liệu trong quá trình truyền tải. Tất cả dữ liệu được lưu trữ trên máy chủ an toàn với các biện pháp bảo mật tiến tiến.',
     'privacy.rightsTitle': 'Quyền của bạn',
     'privacy.rightsText': 'Bạn có quyền truy cập, chỉnh sửa, hoặc xóa thông tin cá nhân của mình bất cứ lúc nào. Vui lòng liên hệ với chúng tôi nếu bạn muốn thực hiện các quyền này.',
     'privacy.contact': 'Nếu bạn có bất kỳ câu hỏi nào về chính sách bảo mật, vui lòng liên hệ với chúng tôi qua Zalo hoặc Telegram.',
@@ -677,6 +697,12 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'admin.hacks': 'Status Hack',
   },
   en: {
+    // Topup Leaderboard
+    'topup.leaderboard': 'Topup Leaderboard',
+    'topup.rank': 'Rank',
+    'topup.user': 'User',
+    'topup.totalTopup': 'Total Topup',
+
     // Common
     'common.loading': 'Loading...',
     'common.error': 'Error',
@@ -708,6 +734,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'auth.enterBoth': 'Please enter both email and password',
     'auth.loginFailed': 'Login failed',
     'auth.loginSuccess': 'Login successful!',
+    'auth.noAccount': "Don't have an account?",
     
     // Dashboard
     'dashboard.title': 'Reseller Dashboard',
@@ -747,6 +774,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
       'generate.purchased': 'purchased',
       'generate.copyAllKeys': 'Copy All Keys',
       'generate.seller': 'Seller',
+      'generate.statistics': 'Statistics',
       'generate.totalProducts': 'Total Products',
       'generate.available': 'Available',
       'generate.totalValue': 'Total Value',
@@ -779,6 +807,12 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
       'history.resetPending': 'Pending',
       'history.resetApproved': 'Reset',
       'history.resetRejected': 'Cannot reset',
+      'history.table.orderId': 'Order ID',
+      'history.table.key': 'Key',
+      'history.table.product': 'Product',
+      'history.table.price': 'Price',
+      'history.table.date': 'Date',
+      'history.table.action': 'Action',
     
     // Topup Page
     'topup.title': 'Topup Wallet',
@@ -914,7 +948,7 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'footer.allRightsReserved': 'All rights reserved.',
     'footer.madeWith': 'Made',
     'footer.by': 'by',
-    'footer.team': 'Lynx',
+    'footer.team': 'DLM',
     
     // About Page
     'about.title': 'About Us',
@@ -1012,6 +1046,3 @@ export const translations: Record<Language, Record<TranslationKey, string>> = {
     'admin.hacks': 'Hack Status',
   },
 };
-
-export type Language = 'vi' | 'en';
-

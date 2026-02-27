@@ -7,11 +7,13 @@ import Card from '@/components/ui/Card';
 import { ArrowDownCircle, TrendingUp, Loader2, Calendar, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatDateShort } from '@/utils/format';
 import Input from '@/components/ui/Input';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function TransactionsPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const { usdToVnd } = useExchangeRate();
   const [transactions, setTransactions] = useState<TopupTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,18 +41,19 @@ export default function TransactionsPage() {
     if (!searchQuery) return transactions;
     const query = searchQuery.toLowerCase();
     return transactions.filter((t) => {
-      const amountStr = formatCurrency(t.amountUSD || t.amount / 25000, true).toLowerCase();
+      const amountUSD = t.amountUSD || t.amount / usdToVnd;
+      const amountStr = formatCurrency(amountUSD, language, usdToVnd).toLowerCase();
       const dateStr = formatDateShort(t.createdAt).toLowerCase();
       return amountStr.includes(query) || dateStr.includes(query);
     });
-  }, [transactions, searchQuery]);
+  }, [transactions, searchQuery, language, usdToVnd]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
 
   const totalTopup = filteredTransactions.reduce(
-    (sum, t) => sum + (t.amountUSD || t.amount / 25000),
+    (sum, t) => sum + (t.amountUSD || t.amount / usdToVnd),
     0
   );
 
@@ -60,7 +63,7 @@ export default function TransactionsPage() {
     return transactionDate.getMonth() === now.getMonth() && transactionDate.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonth.reduce(
-    (sum, t) => sum + (t.amountUSD || t.amount / 25000),
+    (sum, t) => sum + (t.amountUSD || t.amount / usdToVnd),
     0
   );
 
@@ -81,7 +84,7 @@ export default function TransactionsPage() {
       <div className="flex justify-center items-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-cyan-400 mx-auto mb-4" />
-              <p className="text-gray-400">{t('common.loading')}</p>
+          <p className="text-gray-400">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -119,7 +122,7 @@ export default function TransactionsPage() {
             </div>
             <div>
               <p className="text-gray-400 text-sm mb-1">{t('transactions.totalTopup')}</p>
-              <p className="text-3xl font-bold text-green-400">{formatCurrency(totalTopup, true)}</p>
+              <p className="text-3xl font-bold text-green-400">{formatCurrency(totalTopup, language, usdToVnd)}</p>
             </div>
           </div>
         </Card>
@@ -137,7 +140,7 @@ export default function TransactionsPage() {
             </div>
             <div>
               <p className="text-gray-400 text-sm mb-1">{t('transactions.thisMonth')}</p>
-              <p className="text-3xl font-bold text-cyan-400">{formatCurrency(thisMonthTotal, true)}</p>
+              <p className="text-3xl font-bold text-cyan-400">{formatCurrency(thisMonthTotal, language, usdToVnd)}</p>
             </div>
           </div>
         </Card>
@@ -187,34 +190,34 @@ export default function TransactionsPage() {
           <>
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-800">
                     <th className="text-left py-4 px-4 text-gray-300 font-semibold text-sm">#</th>
                     <th className="text-right py-4 px-4 text-gray-300 font-semibold text-sm">AMOUNT</th>
                     <th className="text-right py-4 px-4 text-gray-300 font-semibold text-sm">DATE</th>
-                </tr>
-              </thead>
-              <tbody>
+                  </tr>
+                </thead>
+                <tbody>
                   {paginatedTransactions.map((transaction, idx) => (
                     <tr
                       key={transaction._id}
                       className="border-b border-gray-800/50 hover:bg-gray-900/50 transition-colors"
                     >
                       <td className="py-4 px-4 text-gray-200">#{startIndex + idx + 1}</td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="text-green-400 font-bold text-lg">
-                          +{formatCurrency(transaction.amountUSD || transaction.amount / 25000, true)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right text-gray-400 text-sm">
-                      {formatDateShort(transaction.createdAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td className="py-4 px-4 text-right">
+                        <span className="text-green-400 font-bold text-lg">
+                          +{formatCurrency(transaction.amountUSD || transaction.amount / usdToVnd, language, usdToVnd)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right text-gray-400 text-sm">
+                        {formatDateShort(transaction.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3">
@@ -232,7 +235,7 @@ export default function TransactionsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-300 text-sm">Amount</span>
                     <span className="text-green-400 font-bold text-lg">
-                      +{formatCurrency(transaction.amountUSD || transaction.amount / 25000, true)}
+                      +{formatCurrency(transaction.amountUSD || transaction.amount / usdToVnd, language, usdToVnd)}
                     </span>
                   </div>
                 </div>
@@ -317,12 +320,12 @@ export default function TransactionsPage() {
 
             {/* Total count (no pagination or single page) */}
             {totalPages === 1 && (
-          <div className="mt-6 pt-4 border-t border-gray-800 text-center text-sm text-gray-400">
+              <div className="mt-6 pt-4 border-t border-gray-800 text-center text-sm text-gray-400">
                 {t('transactions.total')} {filteredTransactions.length}{' '}
                 {filteredTransactions.length !== 1
                   ? t('transactions.transactions')
                   : t('transactions.transaction')}
-          </div>
+              </div>
             )}
           </>
         )}

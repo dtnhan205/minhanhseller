@@ -45,18 +45,24 @@ export default function ImageInput({
     try {
       // Upload file to backend
       const result = await adminApi.uploadImage(file);
+      
       // Backend returns URL like /uploads/filename
-      // We need to construct full URL based on API base URL
-      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      // Remove /api from base URL if present, since static files are served from root
-      const baseUrl = apiBaseUrl.replace(/\/api$/, '');
+      // Construct full URL - static files are served from root, not /api
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      // Remove /api from base URL since static files are served from root
+      const baseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
+      
+      // Ensure URL starts with / if it's a relative path
+      const imagePath = result.url.startsWith('/') ? result.url : `/${result.url}`;
       const fullUrl = result.url.startsWith('http') 
         ? result.url 
-        : `${baseUrl}${result.url}`;
+        : `${baseUrl}${imagePath}`;
+      
       onChange(fullUrl);
       showSuccess('Upload hình ảnh thành công!');
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Lỗi khi upload hình ảnh');
+      console.error('Upload error:', error);
+      showError(error?.response?.data?.message || error?.message || 'Lỗi khi upload hình ảnh');
     } finally {
       setIsUploading(false);
     }

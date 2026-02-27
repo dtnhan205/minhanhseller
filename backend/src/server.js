@@ -5,14 +5,14 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 
-const { connectDb } = require("./utils/db");
-const { errorHandler } = require("./utils/errorHandler");
-const { authRouter } = require("./routes/authRoutes");
-const { adminRouter } = require("./routes/adminRoutes");
-const { sellerRouter } = require("./routes/sellerRoutes");
-const { requireAuth } = require("./middleware/auth");
-const { checkAndUpdatePayments } = require("./services/bankTransactionService");
-const { getExchangeRate, listHacks, getHackDetail } = require("./controllers/sellerController");
+const { connectDb }= require("./utils/db");
+const { errorHandler }= require("./utils/errorHandler");
+const { authRouter }= require("./routes/authRoutes");
+const { adminRouter }= require("./routes/adminRoutes");
+const { sellerRouter }= require("./routes/sellerRoutes");
+const { requireAuth }= require("./middleware/auth");
+const { checkAndUpdatePayments }= require("./services/bankTransactionService");
+const { getExchangeRate, listHacks, getHackDetail }= require("./controllers/sellerController");
 
 const app = express();
 
@@ -36,6 +36,11 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 app.get("/api/health", (req, res) => res.json({ ok: true }));
+
+// Leaderboard Public (Đưa lên đầu để tránh bị middleware requireAuth chặn)
+const { getTopupLeaderboard }= require("./controllers/adminController");
+app.get("/api/leaderboard/topup", getTopupLeaderboard);
+app.get("/leaderboard/topup", getTopupLeaderboard);
 
 // Test routes - để kiểm tra API
 app.get("/api/test", (req, res) => {
@@ -111,37 +116,37 @@ connectDb()
     app.listen(port, () => {
       // eslint-disable-next-line no-console
       console.log(`Backend listening on http://localhost:${port}`);
-      console.log("[Cron] Đang khởi động cron job kiểm tra thanh toán mỗi 15 giây...");
+      console.log("[Cron] Đang khởi động cron job kiểm tra thanh toán mỗi 5 giây...");
     });
 
-    // Cron job: Check thanh toán mỗi 15 giây
+    // Cron job: Check thanh toán mỗi 5 giây
     setInterval(async () => {
       try {
         const result = await checkAndUpdatePayments();
         if (result.checked > 0) {
-          console.log(`[Cron] ✓ Đã kiểm tra ${result.checked} payment(s)`);
+          console.log(`[Cron] ✓ Đã kiểm tra ${result.checked}payment(s)`);
         }
         if (result.updated > 0) {
-          console.log(`[Cron] ✓ Đã cập nhật ${result.updated} payment(s) thành công!`);
+          console.log(`[Cron] ✓ Đã cập nhật ${result.updated}payment(s) thành công!`);
         }
         if (result.deleted > 0) {
-          console.log(`[Cron] ✓ Đã xóa ${result.deleted} payment(s) đã hết hạn!`);
+          console.log(`[Cron] ✓ Đã xóa ${result.deleted}payment(s) đã hết hạn!`);
         }
         if (result.error) {
           console.error(`[Cron] ✗ Lỗi: ${result.error}`);
         }
-      } catch (error) {
+      }catch (error) {
         console.error("[Cron] ✗ Lỗi khi check thanh toán:", error.message);
       }
-    }, 15000); // 15 giây
+    }, 5000); // 5 giây
 
     // Chạy ngay lần đầu sau 5 giây khi server start
     setTimeout(async () => {
       try {
         console.log("[Cron] Chạy kiểm tra thanh toán lần đầu...");
         const result = await checkAndUpdatePayments();
-        console.log(`[Cron] ✓ Lần đầu: Đã kiểm tra ${result.checked} payment(s), cập nhật ${result.updated} payment(s).`);
-      } catch (error) {
+        console.log(`[Cron] ✓ Lần đầu: Đã kiểm tra ${result.checked}payment(s), cập nhật ${result.updated}payment(s).`);
+      }catch (error) {
         console.error("[Cron] ✗ Lỗi khi check thanh toán lần đầu:", error.message);
       }
     }, 5000); // 5 giây
@@ -151,5 +156,3 @@ connectDb()
     console.error("Failed to start server:", err);
     process.exit(1);
   });
-
-

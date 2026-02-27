@@ -205,11 +205,11 @@ export default function CategoriesTab({
             </p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+          <div data-lenis-prevent className="space-y-3 max-h-[600px] overflow-y-auto">
             {filteredCategories.map((category, index) => (
               <div
                 key={category._id}
-                className="group flex items-center justify-between p-3 sm:p-4 bg-gray-950/50 rounded-xl border border-gray-800 hover:border-cyan-500/50 hover:bg-gray-900/50 transition-all duration-300 gap-3"
+                className="group flex items-center justify-between p-3 sm:p-4 bg-gray-950/50 rounded-xl border border-gray-800 hover:border-gray-700 hover:bg-gray-900/50 transition-all duration-300 gap-3"
                 style={{
                   animationDelay: `${index * 50}ms`,
                 }}

@@ -14,7 +14,7 @@ export default function ProductImage({ product }: ProductImageProps) {
       <img
         src={categoryImage}
         alt={product.name}
-        className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg sm:rounded-xl object-cover border-2 border-gray-800 group-hover:border-cyan-500/50 transition-colors flex-shrink-0"
+        className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg sm:rounded-xl object-cover border-2 border-gray-800 group-hover:border-gray-600 transition-colors flex-shrink-0"
         onError={(e) => {
           const target = e.target as HTMLImageElement;
           target.style.display = 'none';
@@ -26,9 +26,8 @@ export default function ProductImage({ product }: ProductImageProps) {
     );
   }
   return (
-    <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform flex-shrink-0">
+    <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-gray-500 to-gray-700 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform flex-shrink-0">
       <Package className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
     </div>
   );
 }
-

@@ -76,7 +76,7 @@ export default function HacksPage() {
             <p className="text-gray-400">Chưa có hack nào.</p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-[650px] overflow-y-auto">
+          <div className="space-y-3">
             {hacks.map((hack) => (
               <div
                 key={hack._id}

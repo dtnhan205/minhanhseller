@@ -1,265 +1,158 @@
-import { useState, useMemo } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import { useToastStore } from '@/store/toastStore';
-import { useTranslation } from '@/hooks/useTranslation';
-import { useTokenExpiration } from '@/hooks/useTokenExpiration';
-import { useSellers, useCategories, useProducts } from '@/hooks/useAdminData';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  UserPlus,
-  Shield,
-  Package,
-  Folder,
-  Key,
-  Building2,
-  DollarSign,
   Users,
-  ShoppingBag,
-  Layers,
+  FolderTree,
+  Package,
+  Database,
+  LayoutDashboard,
+  DollarSign,
+  Building2,
+  History,
   RotateCcw,
+  Activity,
+  Tags,
+  ShoppingCart,
   Wallet,
+  CalendarDays,
+  BarChart3,
 } from 'lucide-react';
+
+import { useSellers, useCategories, useProducts } from '@/hooks/useAdminData';
 import { adminApi } from '@/services/api';
-import StatCard from '@/components/admin/StatCard';
 import SellersTab from '@/components/admin/SellersTab';
 import CategoriesTab from '@/components/admin/CategoriesTab';
 import ProductsTab from '@/components/admin/ProductsTab';
 import InventoryTab from '@/components/admin/InventoryTab';
-import BankAccountsTab from '@/components/admin/BankAccountsTab';
 import ExchangeRateTab from '@/components/admin/ExchangeRateTab';
-import ResetRequestsTab from '@/components/admin/ResetRequestsTab';
+import BankAccountsTab from '@/components/admin/BankAccountsTab';
 import OrdersHistoryTab from '@/components/admin/OrdersHistoryTab';
+import ResetRequestsTab from '@/components/admin/ResetRequestsTab';
 import HacksTab from '@/components/admin/HacksTab';
-import TopupTab from '@/components/admin/TopupTab';
+import SellerPricesTab from '@/components/admin/SellerPricesTab';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
+import { formatCurrency } from '@/utils/format';
+import type { AdminDashboardStats } from '@/types';
 
 type TabType =
+  | 'dashboard'
   | 'sellers'
   | 'categories'
   | 'products'
   | 'inventory'
-  | 'bank-accounts'
   | 'exchange-rate'
+  | 'banks'
+  | 'orders'
   | 'reset-requests'
-  | 'orders-history'
-  | 'hacks'
-  | 'topup';
+  | 'hacks-status'
+  | 'seller-prices';
+
+const emptyStats: AdminDashboardStats = {
+  today: { totalOrders: 0, totalRevenue: 0 },
+  thisMonth: { totalOrders: 0, totalRevenue: 0 },
+  thisYear: { totalOrders: 0, totalRevenue: 0 },
+  allTime: { totalOrders: 0, totalRevenue: 0 },
+  chart: [],
+};
 
 export default function AdminPage() {
-  const { user } = useAuthStore();
-  const { error: showError, success: showSuccess } = useToastStore();
-  const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<TabType>('sellers');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats>(emptyStats);
+  const [isLoadingDashboardStats, setIsLoadingDashboardStats] = useState(false);
 
-  // Kiểm tra token expiration và tự động logout
-  useTokenExpiration();
+  const { language } = useTranslation();
+  const { usdToVnd } = useExchangeRate();
 
-  // Use custom hooks
-  const { sellers, createSeller } = useSellers();
+  const { sellers, isLoading: isLoadingSellers, createSeller } = useSellers();
   const {
-    categories,
+    isLoading: isLoadingCategories,
     createCategory,
     updateCategory,
     deleteCategory,
   } = useCategories();
   const {
-    products,
+    isLoading: isLoadingProducts,
     createProduct,
     updateProduct,
     deleteProduct,
     addInventory,
   } = useProducts();
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalSellers = sellers.length;
-    const totalCategories = categories.length;
-    const totalProducts = products.length;
-    const totalSold = products.reduce(
-      (sum, p) => sum + (p.soldQuantity || 0),
-      0
-    );
+  const isLoading = isLoadingSellers || isLoadingCategories || isLoadingProducts;
 
-    return {
-      totalSellers,
-      totalCategories,
-      totalProducts,
-      totalSold,
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return;
+
+    const loadStats = async () => {
+      setIsLoadingDashboardStats(true);
+      try {
+        const data = await adminApi.getDashboardStats();
+        setDashboardStats(data);
+      } catch {
+        setDashboardStats(emptyStats);
+      } finally {
+        setIsLoadingDashboardStats(false);
+      }
     };
-  }, [sellers, categories, products]);
 
-  // Handlers
-  const handleCreateSeller = async (data: { email: string; password: string }) => {
-    return await createSeller(data);
+    loadStats();
+  }, [activeTab]);
+
+  const tabs: Array<{ id: TabType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'sellers', label: 'Sellers', icon: Users },
+    { id: 'seller-prices', label: 'Set giá seller', icon: Tags },
+    { id: 'categories', label: 'Categories', icon: FolderTree },
+    { id: 'products', label: 'Products', icon: Package },
+    { id: 'inventory', label: 'Inventory', icon: Database },
+    { id: 'orders', label: 'Lịch sử mua', icon: History },
+    { id: 'reset-requests', label: 'Yêu cầu reset', icon: RotateCcw },
+    { id: 'hacks-status', label: 'Status hack', icon: Activity },
+    { id: 'banks', label: 'Ngân hàng', icon: Building2 },
+    { id: 'exchange-rate', label: 'Tỷ giá', icon: DollarSign },
+  ];
+
+  const chartPoints = useMemo(() => {
+    const chart = dashboardStats.chart || [];
+    if (chart.length === 0) return '';
+
+    const maxRevenue = Math.max(...chart.map((c) => c.totalRevenue), 1);
+
+    return chart
+      .map((item, index) => {
+        const x = (index / Math.max(chart.length - 1, 1)) * 100;
+        const y = 100 - (item.totalRevenue / maxRevenue) * 100;
+        return `${x},${y}`;
+      })
+      .join(' ');
+  }, [dashboardStats.chart]);
+
+  const handleUpdateExchangeRate = async (rate: number) => {
+    return await adminApi.updateExchangeRate(rate);
   };
 
-  const handleCreateCategory = async (name: string, image?: string, order?: number) => {
-    return await createCategory(name, image, order);
+  const handleCreateBankAccount = async (data: any) => {
+    return await adminApi.createBankAccount(data);
   };
 
-  const handleUpdateCategory = async (id: string, data: { name?: string; image?: string; order?: number }) => {
-    return await updateCategory(id, data);
-  };
-
-  const handleDeleteCategory = async (id: string) => {
-    return await deleteCategory(id);
-  };
-
-  const handleCreateProduct = async (data: { name: string; categoryId: string; price: number }) => {
-    return await createProduct(data);
-  };
-
-  const handleUpdateProduct = async (id: string, data: { name?: string; categoryId?: string; price?: number }) => {
-    return await updateProduct(id, data);
-  };
-
-  const handleDeleteProduct = async (id: string) => {
-    return await deleteProduct(id);
-  };
-
-  const handleAddInventory = async (productId: string, keys: string[]) => {
-    return await addInventory(productId, keys);
-  };
-
-  const handleCreateBankAccount = async (data: {
-    bankName: string;
-    accountNumber: string;
-    accountHolder: string;
-    apiUrl?: string;
-  }) => {
-    try {
-      const account = await adminApi.createBankAccount(data);
-      showSuccess('Bank account created successfully!');
-      return account;
-    } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to create bank account');
-      throw err;
-    }
-  };
-
-  const handleUpdateBankAccount = async (id: string, data: {
-    bankName?: string;
-    accountNumber?: string;
-    accountHolder?: string;
-    apiUrl?: string;
-    isActive?: boolean;
-  }) => {
-    try {
-      const account = await adminApi.updateBankAccount(id, data);
-      showSuccess('Bank account updated successfully!');
-      return account;
-    } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to update bank account');
-      throw err;
-    }
+  const handleUpdateBankAccount = async (id: string, data: any) => {
+    return await adminApi.updateBankAccount(id, data);
   };
 
   const handleDeleteBankAccount = async (id: string) => {
-    try {
-      await adminApi.deleteBankAccount(id);
-      showSuccess('Bank account deleted successfully!');
-    } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to delete bank account');
-      throw err;
-    }
+    return await adminApi.deleteBankAccount(id);
   };
-
-  const handleUpdateExchangeRate = async (rate: number) => {
-    try {
-      const updated = await adminApi.updateExchangeRate(rate);
-      showSuccess('Exchange rate updated successfully!');
-      return updated;
-    } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to update exchange rate');
-      throw err;
-    }
-  };
-
-  const tabs = [
-    { id: 'sellers' as TabType, labelKey: 'admin.sellers', icon: UserPlus },
-    { id: 'categories' as TabType, labelKey: 'admin.categories', icon: Folder },
-    { id: 'products' as TabType, labelKey: 'admin.products', icon: Package },
-    { id: 'inventory' as TabType, labelKey: 'admin.inventory', icon: Key },
-    { id: 'bank-accounts' as TabType, labelKey: 'admin.bankAccounts', icon: Building2 },
-    { id: 'exchange-rate' as TabType, labelKey: 'admin.exchangeRate', icon: DollarSign },
-    { id: 'topup' as TabType, labelKey: 'nav.topup', icon: Wallet },
-    { id: 'reset-requests' as TabType, labelKey: 'admin.resetRequests', icon: RotateCcw },
-    { id: 'orders-history' as TabType, labelKey: 'admin.ordersHistory', icon: ShoppingBag },
-    { id: 'hacks' as TabType, labelKey: 'admin.hacks', icon: Shield },
-  ];
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header with Stats */}
-      <div className="space-y-4 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl flex-shrink-0">
-              <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
-                {t('admin.dashboard')}
-              </h1>
-              <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                {t('admin.managePlatform')}
-              </p>
-            </div>
-          </div>
-          <div 
-            className="droplet-container px-3 sm:px-4 py-2 w-full sm:w-auto justify-center sm:justify-start"
-            style={{
-              background: 'rgba(168, 85, 247, 0.15)',
-              backdropFilter: 'blur(2px) saturate(120%)',
-              WebkitBackdropFilter: 'blur(2px) saturate(120%)',
-              border: '1px solid rgba(168, 85, 247, 0.3)',
-              boxShadow: `
-                0 24px 72px -16px rgba(168, 85, 247, 0.4),
-                0 16px 48px -12px rgba(168, 85, 247, 0.3),
-                0 8px 24px -8px rgba(168, 85, 247, 0.2),
-                inset 0 2px 0 0 rgba(255, 255, 255, 0.3),
-                inset -3px -3px 8px 0 rgba(255, 255, 255, 0.15),
-                inset 4px 4px 8px 0 rgba(0, 0, 0, 0.12),
-                0 0 0 1px rgba(168, 85, 247, 0.25)
-              `,
-            }}
-          >
-            <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
-              <span className="text-xs sm:text-sm text-white font-medium truncate">{user?.email}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard
-            icon={Users}
-            label={t('admin.totalSellers')}
-            value={stats.totalSellers}
-            color="purple"
-          />
-          <StatCard
-            icon={Layers}
-            label={t('admin.totalCategories')}
-            value={stats.totalCategories}
-            color="blue"
-          />
-          <StatCard
-            icon={Package}
-            label={t('admin.totalProducts')}
-            value={stats.totalProducts}
-            color="cyan"
-          />
-          <StatCard
-            icon={ShoppingBag}
-            label={t('admin.totalSold')}
-            value={stats.totalSold}
-            color="green"
-          />
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+          <p className="text-sm text-white/60">Quản trị hệ thống và phân phối</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 sm:gap-2 border-b border-gray-800 pb-2 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+      <div className="flex flex-wrap gap-2 border-b border-white/10 pb-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -267,54 +160,162 @@ export default function AdminPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm md:text-base whitespace-nowrap flex-shrink-0 ${
-                isActive
-                  ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-lg shadow-cyan-500/30'
-                  : 'bg-gray-950/50 text-gray-300 hover:bg-gray-900 border border-gray-800 hover:border-gray-700'
-              }`}
+              className={
+                `flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ` +
+                (isActive
+                  ? 'text-cyan-400 border-b-2 border-cyan-400'
+                  : 'text-white/60 hover:text-white hover:bg-white/5 rounded-t-lg')
+              }
             >
-              <Icon
-                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${
-                  isActive ? 'scale-110' : 'group-hover:scale-110'
-                }`}
-              />
-              <span className="hidden sm:inline">{t(tab.labelKey as any)}</span>
-              <span className="sm:hidden">{t(tab.labelKey as any).split(' ')[0]}</span>
-              {isActive && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/50 rounded-full" />
-              )}
+              <Icon className="w-4 h-4" />
+              {tab.label}
             </button>
           );
         })}
       </div>
 
-      {/* Tab Content */}
-      <div className="min-h-[400px]">
-        {activeTab === 'sellers' && (
-          <SellersTab onCreateSeller={handleCreateSeller} />
+      <div className="mt-6">
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-white/60">Tổng số Sellers</div>
+                  <Users className="w-5 h-5 text-purple-400" />
+                </div>
+                <div className="text-3xl font-bold text-white">{isLoadingSellers ? '...' : sellers.length}</div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-white/60">Tổng đơn đã bán</div>
+                  <ShoppingCart className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {isLoadingDashboardStats ? '...' : dashboardStats.allTime.totalOrders}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-white/60">Tổng doanh thu</div>
+                  <Wallet className="w-5 h-5 text-green-400" />
+                </div>
+                <div className="text-2xl font-bold text-white">
+                  {isLoadingDashboardStats
+                    ? '...'
+                    : formatCurrency(dashboardStats.allTime.totalRevenue, language, usdToVnd)}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2 mb-2 text-white/70 text-sm">
+                  <CalendarDays className="w-4 h-4 text-blue-400" /> Hôm nay
+                </div>
+                <p className="text-white text-sm">Đơn: <span className="font-bold">{dashboardStats.today.totalOrders}</span></p>
+                <p className="text-white text-sm">Tiền: <span className="font-bold text-green-400">{formatCurrency(dashboardStats.today.totalRevenue, language, usdToVnd)}</span></p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2 mb-2 text-white/70 text-sm">
+                  <CalendarDays className="w-4 h-4 text-purple-400" /> Tháng này
+                </div>
+                <p className="text-white text-sm">Đơn: <span className="font-bold">{dashboardStats.thisMonth.totalOrders}</span></p>
+                <p className="text-white text-sm">Tiền: <span className="font-bold text-green-400">{formatCurrency(dashboardStats.thisMonth.totalRevenue, language, usdToVnd)}</span></p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center gap-2 mb-2 text-white/70 text-sm">
+                  <CalendarDays className="w-4 h-4 text-amber-400" /> Năm nay
+                </div>
+                <p className="text-white text-sm">Đơn: <span className="font-bold">{dashboardStats.thisYear.totalOrders}</span></p>
+                <p className="text-white text-sm">Tiền: <span className="font-bold text-green-400">{formatCurrency(dashboardStats.thisYear.totalRevenue, language, usdToVnd)}</span></p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-lg font-medium text-white">Biểu đồ doanh thu 14 ngày gần nhất</h3>
+              </div>
+
+              {dashboardStats.chart.length === 0 ? (
+                <p className="text-sm text-white/50">Chưa có dữ liệu biểu đồ.</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="h-56 w-full bg-black/20 rounded-lg p-3 border border-white/10">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+                      <polyline
+                        fill="none"
+                        stroke="#22d3ee"
+                        strokeWidth="2"
+                        points={chartPoints}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+                    {dashboardStats.chart.map((item) => (
+                      <div key={item.date} className="text-xs bg-black/20 border border-white/10 rounded-md p-2">
+                        <p className="text-white/60">{item.date.slice(5)}</p>
+                        <p className="text-white">{item.totalOrders} đơn</p>
+                        <p className="text-green-400">{formatCurrency(item.totalRevenue, language, usdToVnd)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+              <h3 className="text-lg font-medium text-white mb-4">Trạng thái hệ thống</h3>
+              <div className="flex items-center gap-3">
+                <div
+                  className={
+                    `w-3 h-3 rounded-full ` +
+                    (isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500')
+                  }
+                />
+                <span className="text-white/80">
+                  {isLoading ? 'Đang đồng bộ dữ liệu...' : 'Hệ thống sẵn sàng'}
+                </span>
+              </div>
+            </div>
+          </div>
         )}
+
+        {activeTab === 'sellers' && <SellersTab onCreateSeller={createSeller} />}
 
         {activeTab === 'categories' && (
           <CategoriesTab
-            onCreateCategory={handleCreateCategory}
-            onUpdateCategory={handleUpdateCategory}
-            onDeleteCategory={handleDeleteCategory}
+            onCreateCategory={createCategory}
+            onUpdateCategory={updateCategory}
+            onDeleteCategory={deleteCategory}
           />
         )}
 
         {activeTab === 'products' && (
           <ProductsTab
-            onCreateProduct={handleCreateProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
+            onCreateProduct={createProduct}
+            onUpdateProduct={updateProduct}
+            onDeleteProduct={deleteProduct}
           />
         )}
 
-        {activeTab === 'inventory' && (
-          <InventoryTab onAddInventory={handleAddInventory} />
-        )}
+        {activeTab === 'inventory' && <InventoryTab onAddInventory={addInventory} />}
 
-        {activeTab === 'bank-accounts' && (
+        {activeTab === 'orders' && <OrdersHistoryTab />}
+
+        {activeTab === 'reset-requests' && <ResetRequestsTab />}
+
+        {activeTab === 'hacks-status' && <HacksTab />}
+
+        {activeTab === 'seller-prices' && <SellerPricesTab />}
+
+        {activeTab === 'banks' && (
           <BankAccountsTab
             onCreateBankAccount={handleCreateBankAccount}
             onUpdateBankAccount={handleUpdateBankAccount}
@@ -325,18 +326,6 @@ export default function AdminPage() {
         {activeTab === 'exchange-rate' && (
           <ExchangeRateTab onUpdateExchangeRate={handleUpdateExchangeRate} />
         )}
-
-        {activeTab === 'reset-requests' && (
-          <ResetRequestsTab />
-        )}
-
-        {activeTab === 'orders-history' && (
-          <OrdersHistoryTab />
-        )}
-
-        {activeTab === 'hacks' && <HacksTab />}
-
-        {activeTab === 'topup' && <TopupTab />}
       </div>
     </div>
   );

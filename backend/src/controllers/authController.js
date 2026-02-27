@@ -12,6 +12,10 @@ async function login(req, res) {
   const ok = await user.verifyPassword(String(password));
   if (!ok) throw new HttpError(401, "Invalid credentials");
 
+  if (user.isLocked) {
+    throw new HttpError(403, "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.");
+  }
+
   const token = signToken({ userId: user._id.toString(), role: user.role });
   res.json({
     token,

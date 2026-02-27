@@ -17,6 +17,7 @@ import type {
   ExchangeRate,
   SellerProductPrice,
   Hack,
+  AdminDashboardStats,
 } from '@/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -110,6 +111,18 @@ export const adminApi = {
     const res = await api.get('/admin/sellers');
     return res.data;
   },
+  lockSeller: async (sellerId: string): Promise<{ message: string; seller: User }> => {
+    const res = await api.put(`/admin/sellers/${sellerId}/lock`);
+    return res.data;
+  },
+  unlockSeller: async (sellerId: string): Promise<{ message: string; seller: User }> => {
+    const res = await api.put(`/admin/sellers/${sellerId}/unlock`);
+    return res.data;
+  },
+  deleteSeller: async (sellerId: string): Promise<{ message: string }> => {
+    const res = await api.delete(`/admin/sellers/${sellerId}`);
+    return res.data;
+  },
   getSellerTopupHistory: async (sellerId: string): Promise<Payment[]> => {
     const res = await api.get(`/admin/sellers/${sellerId}/topup-history`);
     return res.data;
@@ -190,6 +203,12 @@ export const adminApi = {
     });
     return res.data;
   },
+  getSellerProductPricesByProduct: async (productId: string): Promise<SellerProductPrice[]> => {
+    const res = await api.get('/admin/seller-product-prices', {
+      params: { productId },
+    });
+    return res.data;
+  },
   setSellerProductPrice: async (
     sellerId: string,
     productId: string,
@@ -201,6 +220,9 @@ export const adminApi = {
       price,
     });
     return res.data;
+  },
+  deleteSellerProductPrice: async (id: string): Promise<void> => {
+    await api.delete(`/admin/seller-product-prices/${id}`);
   },
   // Bank accounts management
   getBankAccounts: async (): Promise<BankAccount[]> => {
@@ -252,6 +274,10 @@ export const adminApi = {
   },
   rejectResetRequest: async (id: string): Promise<any> => {
     const res = await api.put(`/admin/reset-requests/${id}/reject`);
+    return res.data;
+  },
+  getDashboardStats: async (): Promise<AdminDashboardStats> => {
+    const res = await api.get('/admin/dashboard-stats');
     return res.data;
   },
   // Orders history
@@ -317,17 +343,23 @@ export const adminApi = {
     const formData = new FormData();
     formData.append('image', file);
     
-    const res = await api.post('/admin/upload-image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Không set Content-Type header, để axios tự động set với boundary cho multipart/form-data
+    const res = await api.post('/admin/upload-image', formData);
     return res.data;
   },
 };
 
 // Seller APIs
 export const sellerApi = {
+  getTopupLeaderboard: async (): Promise<Array<{ email: string; totalTopup: number }>> => {
+    // Use a separate axios instance WITHOUT auth interceptors for public endpoint
+    const publicApi = axios.create({
+      baseURL: API_URL,
+      timeout: 10000,
+    });
+    const res = await publicApi.get('/leaderboard/topup');
+    return res.data;
+  },
   topup: async (data: TopupRequest): Promise<Payment> => {
     const res = await api.post('/wallet/topup', data);
     return res.data;
@@ -395,4 +427,3 @@ export const sellerApi = {
         return res.data;
       },
     };
-

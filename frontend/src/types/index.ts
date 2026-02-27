@@ -6,6 +6,7 @@ export interface User {
   role: UserRole;
   wallet?: number;
   totalTopup?: number; // Tổng nạp tiền (USD)
+  isLocked?: boolean;
   createdAt: string;
 }
 
@@ -120,6 +121,14 @@ export interface SellerProductPrice {
   price: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminDashboardStats {
+  today: { totalOrders: number; totalRevenue: number };
+  thisMonth: { totalOrders: number; totalRevenue: number };
+  thisYear: { totalOrders: number; totalRevenue: number };
+  allTime: { totalOrders: number; totalRevenue: number };
+  chart: Array<{ date: string; totalOrders: number; totalRevenue: number }>;
 }
 
 export type HackStatusType = 'updating' | 'safe';

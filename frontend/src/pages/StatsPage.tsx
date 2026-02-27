@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { sellerApi } from '@/services/api';
 import { useToastStore } from '@/store/toastStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
 import type { Order, Product } from '@/types';
 import Card from '@/components/ui/Card';
 import { BarChart3, TrendingUp, Package, DollarSign, Loader2 } from 'lucide-react';
@@ -10,6 +11,7 @@ import { getDisplayProductName } from '@/utils/translateProductName';
 
 export default function StatsPage() {
   const { t, language } = useTranslation();
+  const { usdToVnd } = useExchangeRate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +62,7 @@ export default function StatsPage() {
       <div className="flex justify-center items-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-cyan-400 mx-auto mb-4" />
-              <p className="text-gray-400">{t('common.loading')}</p>
+          <p className="text-gray-400">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -77,15 +79,13 @@ export default function StatsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
             {t('stats.title')}
           </h1>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            {t('stats.subtitle')}
-          </p>
+          <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('stats.subtitle')}</p>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card 
+        <Card
           className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-cyan-500/30 hover:scale-[1.02] transition-transform"
           style={{
             backdropFilter: 'blur(2px) saturate(120%)',
@@ -103,7 +103,7 @@ export default function StatsPage() {
           </div>
         </Card>
 
-        <Card 
+        <Card
           className="bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border-teal-500/30 hover:scale-[1.02] transition-transform"
           style={{
             backdropFilter: 'blur(2px) saturate(120%)',
@@ -116,12 +116,12 @@ export default function StatsPage() {
             </div>
             <div>
               <p className="text-gray-400 text-sm mb-1">{t('stats.totalSpent')}</p>
-              <p className="text-3xl font-bold text-teal-400">{formatCurrency(totalSpent)}</p>
+              <p className="text-3xl font-bold text-teal-400">{formatCurrency(totalSpent, language, usdToVnd)}</p>
             </div>
           </div>
         </Card>
 
-        <Card 
+        <Card
           className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-500/30 hover:scale-[1.02] transition-transform"
           style={{
             backdropFilter: 'blur(2px) saturate(120%)',
@@ -134,14 +134,14 @@ export default function StatsPage() {
             </div>
             <div>
               <p className="text-gray-400 text-sm mb-1">{t('stats.avgPrice')}</p>
-              <p className="text-3xl font-bold text-emerald-400">{formatCurrency(avgPrice)}</p>
+              <p className="text-3xl font-bold text-emerald-400">{formatCurrency(avgPrice, language, usdToVnd)}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Product Stats */}
-      <Card 
+      <Card
         title={t('stats.productStatistics')}
         style={{
           backdropFilter: 'blur(2px) saturate(120%)',
@@ -157,27 +157,23 @@ export default function StatsPage() {
           <>
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-800">
                     <th className="text-left py-4 px-4 text-gray-300 font-semibold text-sm">Product</th>
                     <th className="text-right py-4 px-4 text-gray-300 font-semibold text-sm">{t('stats.purchased')}</th>
-                  {/* <th className="text-right py-4 px-4 text-gray-300 font-semibold">{t('stats.revenue')}</th> */}
-                </tr>
-              </thead>
-              <tbody>
-                {productStats.map((stat, idx) => (
-                  <tr key={idx} className="border-b border-gray-800/50 hover:bg-gray-900/50 transition-colors">
-                    <td className="py-4 px-4 text-gray-200 font-medium">{stat.name}</td>
-                    <td className="py-4 px-4 text-right text-cyan-400 font-semibold">{stat.purchased}</td>
-                    {/* <td className="py-4 px-4 text-right text-teal-400 font-bold">
-                      {formatCurrency(stat.revenue)}
-                    </td> */}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {productStats.map((stat, idx) => (
+                    <tr key={idx} className="border-b border-gray-800/50 hover:bg-gray-900/50 transition-colors">
+                      <td className="py-4 px-4 text-gray-200 font-medium">{stat.name}</td>
+                      <td className="py-4 px-4 text-right text-cyan-400 font-semibold">{stat.purchased}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3">

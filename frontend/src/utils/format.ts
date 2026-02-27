@@ -1,57 +1,74 @@
-export const formatCurrency = (amount: number, isUSD: boolean = false): string => {
-  if (isUSD) {
-    return new Intl.NumberFormat('en-US', {
+const DEFAULT_USD_TO_VND = 25000;
+
+const languageToCurrency: Record<string, { locale: string; currency: string }> = {
+  en: { locale: 'en-US', currency: 'USD' },
+  vi: { locale: 'vi-VN', currency: 'VND' },
+};
+
+export const formatCurrency = (
+  amountUSD: number,
+  language: string = 'vi',
+  usdToVnd: number = DEFAULT_USD_TO_VND,
+  currencyOverride?: 'USD' | 'VND'
+): string => {
+  if (amountUSD === null || amountUSD === undefined || isNaN(amountUSD)) {
+    const fallbackCurrency = currencyOverride ?? languageToCurrency[language]?.currency ?? 'USD';
+    return fallbackCurrency === 'VND' ? '0 ₫' : '$0.00';
+  }
+
+  const currency = currencyOverride ?? languageToCurrency[language]?.currency ?? 'USD';
+
+  if (currency === 'USD') {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amountUSD);
+    } catch {
+      return `$${amountUSD.toFixed(2)}`;
+    }
+  }
+
+  // VND
+  try {
+    const amountVND = Math.round(amountUSD * usdToVnd);
+    return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'VND',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  }
-  // Format VNĐ
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'decimal',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
-
-// Format price for products (USD with decimals)
-export const formatPrice = (price: number | undefined | null): string => {
-  // Handle invalid inputs
-  if (price === null || price === undefined || isNaN(price)) {
-    return '0';
-  }
-  // If price is a whole number, show without decimals, otherwise show up to 2 decimals
-  const isWholeNumber = price % 1 === 0;
-  try {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: isWholeNumber ? 0 : 2,
-      maximumFractionDigits: 2,
-    }).format(price);
-  } catch (err) {
-    // console.error('Error formatting price:', err, price);
-    return String(price);
+      maximumFractionDigits: 0,
+    }).format(amountVND);
+  } catch {
+    return `${Math.round(amountUSD * usdToVnd).toLocaleString('vi-VN')} ₫`;
   }
 };
 
-// Format balance with comma as decimal separator (Vietnamese style)
-export const formatBalance = (amount: number | undefined | null): string => {
-  // Handle invalid inputs
-  if (amount === null || amount === undefined || isNaN(amount)) {
-    return '0';
+export const formatVND = (amountVND: number): string => {
+  if (amountVND === null || amountVND === undefined || isNaN(amountVND)) {
+    return '0 ₫';
   }
-  // If amount is a whole number, show without decimals, otherwise show up to 2 decimals
-  const isWholeNumber = amount % 1 === 0;
   try {
-    // Use 'de-DE' locale which uses comma as decimal separator
-    return new Intl.NumberFormat('de-DE', {
-      minimumFractionDigits: isWholeNumber ? 0 : 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch (err) {
-    // console.error('Error formatting balance:', err, amount);
-    return String(amount).replace('.', ',');
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amountVND);
+  } catch {
+    return `${Math.round(amountVND).toLocaleString('vi-VN')} ₫`;
   }
+};
+
+// Giá sản phẩm đang lưu theo USD -> hiển thị theo ngôn ngữ
+export const formatPrice = (priceUSD: number | undefined | null, language: string = 'vi', usdToVnd: number = 25000): string => {
+  return formatCurrency(priceUSD ?? 0, language, usdToVnd);
+};
+
+// Số dư ví đang lưu theo USD -> hiển thị theo ngôn ngữ
+export const formatBalance = (amountUSD: number | undefined | null, language: string = 'vi', usdToVnd: number = 25000): string => {
+  return formatCurrency(amountUSD ?? 0, language, usdToVnd);
 };
 
 export const formatDate = (date: string | Date): string => {
@@ -78,7 +95,6 @@ export const formatDateShort = (date: string | Date | null | undefined): string 
       minute: '2-digit',
     }).format(d);
   } catch (err) {
-    // console.error('Error formatting date:', err, date);
     return 'N/A';
   }
 };
@@ -122,4 +138,3 @@ export function formatTimeAgo(date: string | Date): string {
   const diffInYears = Math.floor(diffInMonths / 12);
   return `${diffInYears} năm trước`;
 }
-

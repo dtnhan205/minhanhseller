@@ -329,6 +329,7 @@ async function listSellers(req, res) {
         role: seller.role,
         wallet: seller.walletBalance || 0,
         totalTopup: totalTopupAmount,
+        isLocked: Boolean(seller.isLocked),
         createdAt: seller.createdAt
       };
     })
@@ -405,6 +406,17 @@ async function setSellerProductPrice(req, res) {
     createdAt: override.createdAt,
     updatedAt: override.updatedAt,
   });
+}
+
+// DELETE /api/admin/seller-product-prices/:id
+// Admin: Xóa giá riêng seller-product
+async function deleteSellerProductPrice(req, res) {
+  const { id } = req.params;
+
+  const deleted = await SellerProductPrice.findByIdAndDelete(id).lean();
+  if (!deleted) throw new HttpError(404, "Seller product price not found");
+
+  res.json({ success: true });
 }
 
 // ---- Hack Status (Admin) ----
@@ -521,14 +533,14 @@ async function manualTopupSeller(req, res) {
   });
 }
 
-// Helper: Tạo mã nội dung chuyển khoản unique (lynxxxxxx)
+// Helper: Tạo mã nội dung chuyển khoản unique (dtnxxxxx)
 async function generateTransferContent() {
   let attempts = 0;
   const maxAttempts = 100;
 
   while (attempts < maxAttempts) {
     const randomNum = Math.floor(Math.random() * 1000000).toString().padStart(6, "0");
-    const transferContent = `lynx${randomNum}`;
+    const transferContent = `dtn${randomNum}`;
 
     const { Payment } = require("../models/Payment");
     const existing = await Payment.findOne({ transferContent });
@@ -665,6 +677,66 @@ async function rejectResetRequest(req, res) {
   await request.save();
 
   res.json(request);
+}
+
+async function getDashboardStats(req, res) {
+  const now = new Date();
+
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+  const [dayStats, monthStats, yearStats, totalStats, recentDaily] = await Promise.all([
+    Order.aggregate([
+      { $match: { createdAt: { $gte: startOfDay } } },
+      { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: "$price" } } },
+    ]),
+    Order.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: "$price" } } },
+    ]),
+    Order.aggregate([
+      { $match: { createdAt: { $gte: startOfYear } } },
+      { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: "$price" } } },
+    ]),
+    Order.aggregate([
+      { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: "$price" } } },
+    ]),
+    Order.aggregate([
+      { $match: { createdAt: { $gte: new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000) } } },
+      {
+        $group: {
+          _id: {
+            y: { $year: "$createdAt" },
+            m: { $month: "$createdAt" },
+            d: { $dayOfMonth: "$createdAt" },
+          },
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: "$price" },
+        },
+      },
+      { $sort: { "_id.y": 1, "_id.m": 1, "_id.d": 1 } },
+    ]),
+  ]);
+
+  const toStats = (arr) => ({
+    totalOrders: arr?.[0]?.totalOrders || 0,
+    totalRevenue: arr?.[0]?.totalRevenue || 0,
+  });
+
+  res.json({
+    today: toStats(dayStats),
+    thisMonth: toStats(monthStats),
+    thisYear: toStats(yearStats),
+    allTime: toStats(totalStats),
+    chart: recentDaily.map((item) => ({
+      date: `${item._id.y}-${String(item._id.m).padStart(2, "0")}-${String(item._id.d).padStart(2, "0")}`,
+      totalOrders: item.totalOrders,
+      totalRevenue: item.totalRevenue,
+    })),
+  });
 }
 
 async function getAllOrders(req, res) {
@@ -818,8 +890,92 @@ async function uploadImage(req, res) {
   });
 }
 
+async function lockSeller(req, res) {
+  const { id } = req.params;
+  const seller = await User.findById(id);
+  if (!seller) throw new HttpError(404, "Seller not found");
+  if (seller.role !== "seller") throw new HttpError(400, "User is not a seller");
+
+  seller.isLocked = true;
+  await seller.save();
+
+  res.json({ message: "Seller locked successfully", seller: { _id: seller._id, email: seller.email, isLocked: seller.isLocked } });
+}
+
+async function unlockSeller(req, res) {
+  const { id } = req.params;
+  const seller = await User.findById(id);
+  if (!seller) throw new HttpError(404, "Seller not found");
+  if (seller.role !== "seller") throw new HttpError(400, "User is not a seller");
+
+  seller.isLocked = false;
+  await seller.save();
+
+  res.json({ message: "Seller unlocked successfully", seller: { _id: seller._id, email: seller.email, isLocked: seller.isLocked } });
+}
+
+async function deleteSeller(req, res) {
+  const { id } = req.params;
+  const seller = await User.findById(id);
+  if (!seller) throw new HttpError(404, "Seller not found");
+  if (seller.role !== "seller") throw new HttpError(400, "User is not a seller");
+
+  // Check if seller has orders - if so, maybe we shouldn't delete or should handle cleanup
+  const orderCount = await Order.countDocuments({ sellerId: id });
+  if (orderCount > 0) {
+    // Optionally: instead of deleting, just disable or mark as deleted
+    // For now, let's allow deletion but acknowledge it's a hard delete
+  }
+
+  await User.findByIdAndDelete(id);
+  // Cleanup other related data if necessary (prices, etc.)
+  await SellerProductPrice.deleteMany({ sellerId: id });
+
+  res.json({ message: "Seller and associated data deleted successfully" });
+}
+
+async function getTopupLeaderboard(req, res) {
+  const sellers = await User.find({ role: "seller" })
+    .select("email walletBalance")
+    .lean();
+  
+  const leaderboard = await Promise.all(
+    sellers.map(async (seller) => {
+      const totalTopup = await Payment.aggregate([
+        { $match: { sellerId: seller._id, status: "completed" } },
+        { $group: { _id: null, total: { $sum: "$amountUSD" } } }
+      ]);
+      
+      const totalTopupAmount = totalTopup.length > 0 ? totalTopup[0].total : 0;
+      
+      // Mask email: abc***@gmail.com
+      const emailParts = seller.email.split('@');
+      const name = emailParts[0];
+      const domain = emailParts[1];
+      const maskedName = name.length > 3 
+        ? name.substring(0, 3) + '***' 
+        : name.substring(0, 1) + '***';
+      
+      return {
+        email: `${maskedName}@${domain}`,
+        totalTopup: totalTopupAmount
+      };
+    })
+  );
+  
+  // Sort by totalTopup descending and take top 5
+  leaderboard.sort((a, b) => b.totalTopup - a.totalTopup);
+  const top5 = leaderboard.slice(0, 5);
+  
+  res.json(top5);
+}
+
 module.exports = {
   createSeller,
+  getTopupLeaderboard,
+  lockSeller,
+  unlockSeller,
+  deleteSeller,
   createCategory,
   listCategories,
   updateCategory,
@@ -834,6 +990,7 @@ module.exports = {
   listSellers,
   listSellerProductPrices,
   setSellerProductPrice,
+  deleteSellerProductPrice,
   getSellerTopupHistory,
   manualTopupSeller,
   getBankAccounts,
@@ -846,6 +1003,7 @@ module.exports = {
   getResetRequests,
   approveResetRequest,
   rejectResetRequest,
+  getDashboardStats,
   getAllOrders,
   listHacks,
   createHack,

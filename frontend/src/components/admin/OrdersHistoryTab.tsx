@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '@/services/api';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
 import Card from '@/components/ui/Card';
 import SkeletonLoader from './SkeletonLoader';
-import { ShoppingBag, Copy, Check, Search, DollarSign, ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react';
-import { formatPrice, formatDateShort } from '@/utils/format';
+import {
+  ShoppingBag,
+  Copy,
+  Check,
+  Search,
+  DollarSign,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  X,
+} from 'lucide-react';
+import { formatCurrency, formatDateShort } from '@/utils/format';
 
 interface Order {
   _id: string;
@@ -21,7 +32,9 @@ interface Order {
 const ITEMS_PER_PAGE = 10;
 
 export default function OrdersHistoryTab() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const { usdToVnd } = useExchangeRate();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,13 +48,14 @@ export default function OrdersHistoryTab() {
 
   useEffect(() => {
     loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, startDate, endDate]);
 
   const loadOrders = async () => {
     try {
       setIsLoading(true);
       const data = await adminApi.getAllOrders(
-        currentPage, 
+        currentPage,
         ITEMS_PER_PAGE,
         startDate || undefined,
         endDate || undefined,
@@ -81,6 +95,7 @@ export default function OrdersHistoryTab() {
     } else {
       loadOrders();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
   const handlePageChange = (page: number) => {
@@ -151,7 +166,9 @@ export default function OrdersHistoryTab() {
             </div>
             <div>
               <p className="text-sm text-white/70">{t('admin.totalRevenue')}</p>
-              <p className="text-2xl font-bold text-white">{formatPrice(totalRevenue)}</p>
+              <p className="text-2xl font-bold text-white">
+                {formatCurrency(totalRevenue, language, usdToVnd)}
+              </p>
             </div>
           </div>
         </Card>
@@ -189,7 +206,7 @@ export default function OrdersHistoryTab() {
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex items-center gap-2 text-white/70">
-              <Calendar className="w-5 h-5" />
+              <Calendar className="w-5 h-5 flex-shrink-0 text-white/70" />
               <span className="text-sm font-medium">Lọc theo ngày:</span>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
@@ -296,7 +313,9 @@ export default function OrdersHistoryTab() {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <p className="text-white text-sm font-semibold">{formatPrice(order.price)}</p>
+                          <p className="text-white text-sm font-semibold">
+                            {formatCurrency(order.price, language, usdToVnd)}
+                          </p>
                         </td>
                         <td className="py-3 px-4">
                           <p className="text-white/70 text-sm">{formatDateShort(order.purchasedAt)}</p>
@@ -325,8 +344,9 @@ export default function OrdersHistoryTab() {
                 <div className="mt-6 pt-4 border-t border-white/10">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-sm text-white/70">
-                      {t('history.showing')} {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalOrders)}{' '}
-                      {t('history.of')} {totalOrders} {t('history.orders')}
+                      {t('history.showing')} {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-
+                      {Math.min(currentPage * ITEMS_PER_PAGE, totalOrders)} {t('history.of')} {totalOrders}{' '}
+                      {t('history.orders')}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -395,4 +415,3 @@ export default function OrdersHistoryTab() {
     </div>
   );
 }
-

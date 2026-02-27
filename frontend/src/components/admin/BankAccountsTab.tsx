@@ -259,7 +259,7 @@ export default function BankAccountsTab({
             {bankAccounts.map((account) => (
               <div
                 key={account._id}
-                className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 hover:border-cyan-500/50 transition-colors"
+                className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
