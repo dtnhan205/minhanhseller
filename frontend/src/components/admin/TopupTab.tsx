@@ -143,7 +143,7 @@ export default function TopupTab() {
             await loadPendingPayments();
             
             // Hiển thị thông báo thành công
-            showSuccess(t('topup.paymentCompleted') || `Thanh toán thành công! Đã cộng ${formatCurrency(updatedPayment.amountUSD || 0, true)} vào ví.`);
+            showSuccess(t('topup.paymentCompleted') || `Thanh toán thành công! Đã cộng ${formatCurrency(updatedPayment.amountUSD || 0, 'en')} vào ví.`);
           } else if (updatedPayment.status !== currentPayment.status) {
             // Cập nhật nếu status thay đổi
             setCurrentPayment(updatedPayment);
@@ -521,7 +521,7 @@ export default function TopupTab() {
                             <div className="h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent" />
                             <div className="flex items-center justify-between">
                               <span className="text-gray-400 text-sm">{t('topup.amountUSD')}:</span>
-                              <span className="text-blue-400 font-bold text-lg">{formatCurrency(currentPayment.amountUSD, true)}</span>
+                              <span className="text-blue-400 font-bold text-lg">{formatCurrency(currentPayment.amountUSD, 'en')}</span>
                             </div>
                           </>
                         )}
@@ -637,7 +637,7 @@ export default function TopupTab() {
                       <div>
                         <span className="text-gray-400">{t('topup.amountUSD')}: </span>
                         <span className="text-blue-400 font-semibold">
-                          {payment.amountUSD ? formatCurrency(payment.amountUSD, true) : 'N/A'}
+                          {payment.amountUSD ? formatCurrency(payment.amountUSD, 'en') : 'N/A'}
                         </span>
                       </div>
                       <span className="text-gray-600">•</span>
